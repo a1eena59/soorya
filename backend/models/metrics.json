@@ -1,0 +1,132 @@
+{
+  "rows": 34848,
+  "systems": 99,
+  "accuracy": 0.9634,
+  "hero_accuracy": 0.9432,
+  "classes": [
+    "healthy",
+    "weather_dip",
+    "soiling",
+    "string_failure",
+    "inverter_off"
+  ],
+  "per_class": {
+    "healthy": {
+      "precision": 0.9881,
+      "recall": 0.972,
+      "f1-score": 0.98,
+      "support": 28624.0
+    },
+    "weather_dip": {
+      "precision": 0.9026,
+      "recall": 0.9613,
+      "f1-score": 0.931,
+      "support": 2689.0
+    },
+    "soiling": {
+      "precision": 0.7671,
+      "recall": 0.8607,
+      "f1-score": 0.8112,
+      "support": 2254.0
+    },
+    "string_failure": {
+      "precision": 0.945,
+      "recall": 0.9375,
+      "f1-score": 0.9412,
+      "support": 880.0
+    },
+    "inverter_off": {
+      "precision": 0.948,
+      "recall": 1.0,
+      "f1-score": 0.9733,
+      "support": 401.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      27823,
+      223,
+      550,
+      12,
+      16
+    ],
+    [
+      93,
+      2585,
+      3,
+      8,
+      0
+    ],
+    [
+      230,
+      50,
+      1940,
+      28,
+      6
+    ],
+    [
+      13,
+      6,
+      36,
+      825,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      401
+    ]
+  ],
+  "feature_importance": [
+    {
+      "feature": "min_7",
+      "importance": 0.1969
+    },
+    {
+      "feature": "vs_peers_7",
+      "importance": 0.187
+    },
+    {
+      "feature": "rolling_mean_7",
+      "importance": 0.1306
+    },
+    {
+      "feature": "peer_median_7",
+      "importance": 0.106
+    },
+    {
+      "feature": "days_since_heavy_rain",
+      "importance": 0.09
+    },
+    {
+      "feature": "zero_days_7",
+      "importance": 0.0647
+    },
+    {
+      "feature": "std_7",
+      "importance": 0.0511
+    },
+    {
+      "feature": "change_vs_prev_7",
+      "importance": 0.0478
+    },
+    {
+      "feature": "change_vs_30",
+      "importance": 0.0443
+    },
+    {
+      "feature": "slope_7",
+      "importance": 0.0421
+    },
+    {
+      "feature": "rain_mm_7",
+      "importance": 0.0334
+    },
+    {
+      "feature": "rain_recovery",
+      "importance": 0.0062
+    }
+  ]
+}

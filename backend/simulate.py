@@ -7,7 +7,10 @@ actual_kwh = capacity × sunlight × system_pr × local_weather × daily_noise
   local_weather  multi-day dips the satellite grid misses (same for every
                  system at a location — the peer check learns from these)
   daily_noise    day-to-day mismatch, bigger on rainy days
-Faults are injected on top in hour 4.
+  × fault        soiling      slow decline, washed off by >=10 mm rain
+                 string       sudden step down (25/33/50%), sometimes repaired
+                 inverter_off zero output for days, usually repaired
+Every fault episode is written to fault_labels as ground truth.
 """
 from datetime import date, timedelta
 
@@ -103,8 +106,67 @@ def insert_systems(systems, installer_id):
             cur.execute("UPDATE systems SET name = %s WHERE id = %s", (s["name"], s["id"]))
 
 
-def simulate_readings(rng, systems, weather, local_weather):
-    rows = []
+# --- Faults -----------------------------------------------------------------
+# Each returns (multiplier per day, [(start_idx, end_idx_or_None, severity), ...])
+
+def soiling(rain, rate):
+    """Dust builds up a little every dry day; a heavy rain (>=10 mm) washes it off."""
+    f = np.ones(len(rain))
+    level = 1.0
+    for i, r in enumerate(rain):
+        level = 1.0 if r >= 10 else max(level - rate, 0.7)
+        f[i] = level
+    # Label stretches where dust costs more than 7%
+    episodes, start = [], None
+    for i, v in enumerate(f):
+        if v < 0.93 and start is None:
+            start = i
+        elif v >= 0.93 and start is not None:
+            episodes.append((start, i - 1, round(float(1 - f[start:i].min()), 3)))
+            start = None
+    if start is not None:
+        episodes.append((start, None, round(float(1 - f[start:].min()), 3)))
+    return f, episodes
+
+
+def step_fault(n_days, start, length, severity):
+    """Output falls by `severity` from `start`; repaired after `length` days (None = never)."""
+    f = np.ones(n_days)
+    end = None if length is None or start + length - 1 >= n_days - 1 else start + length - 1
+    f[start:(n_days if end is None else end + 1)] = 1 - severity
+    return f, [(start, end, severity)]
+
+
+def plan_faults(rng, systems, days):
+    """Decide which systems get which faults. Hero is reserved for the demo story."""
+    n = len(days)
+    others = [s for s in systems if s["id"] != systems[0]["id"]]
+    picks = rng.permutation(len(others))
+    string_sys = [others[i] for i in picks[:14]]
+    inverter_sys = [others[i] for i in picks[14:22]]
+    dusty_sys = [others[i] for i in rng.choice(len(others), size=25, replace=False)]
+
+    plan = {s["id"]: {"dust_rate": 0.0005, "steps": []} for s in systems}
+    for s in dusty_sys:
+        plan[s["id"]]["dust_rate"] = float(rng.uniform(0.003, 0.008))   # near a road / construction
+    for s in string_sys:
+        start = int(rng.integers(30, n - 20))
+        severity = float(rng.choice([0.25, 0.33, 0.5]))                # 1 of 4 / 3 / 2 strings
+        length = None if rng.random() < 0.5 else int(rng.integers(20, 80))
+        plan[s["id"]]["steps"].append(("string_failure", start, length, severity))
+    for s in inverter_sys:
+        start = int(rng.integers(10, n - 5))
+        length = int(rng.integers(3, 16)) if rng.random() < 0.75 else None
+        plan[s["id"]]["steps"].append(("inverter_off", start, length, 1.0))
+
+    # Demo story: Nair residence loses 1 of 4 strings on 14 June, never fixed
+    hero_start = int(np.where(days == pd.Timestamp("2025-06-14"))[0][0])
+    plan[systems[0]["id"]]["steps"].append(("string_failure", hero_start, None, 0.25))
+    return plan
+
+
+def simulate_readings(rng, systems, weather, local_weather, plan, days):
+    rows, labels = [], []
     for s in systems:
         w = weather[weather["location"] == s["location"]]
         sun = w["sunlight_kwh_m2"].to_numpy()
@@ -112,12 +174,24 @@ def simulate_readings(rng, systems, weather, local_weather):
 
         system_pr = PERFORMANCE_RATIO * rng.normal(1.0, 0.04)
         noise = rng.normal(1.0, 0.04 + 0.06 * (rain > 10), size=len(sun))
-        kwh = s["capacity_kw"] * sun * system_pr * local_weather[s["location"]] * noise
+
+        fault_f, episodes = soiling(rain, plan[s["id"]]["dust_rate"])
+        found = [("soiling", *e) for e in episodes]
+        for fault, start, length, severity in plan[s["id"]]["steps"]:
+            f, eps = step_fault(len(sun), start, length, severity)
+            fault_f = fault_f * f
+            found += [(fault, *e) for e in eps]
+
+        kwh = s["capacity_kw"] * sun * system_pr * local_weather[s["location"]] * noise * fault_f
         kwh = np.clip(kwh, 0, None)
 
         rows += [(f"{d} 00:00+05:30", s["id"], round(float(k), 2)) for d, k in zip(w["day"], kwh)]
+        labels += [
+            (s["id"], days[a].date(), None if b is None else days[b].date(), fault, sev)
+            for fault, a, b, sev in found
+        ]
         s["system_pr"] = system_pr
-    return rows
+    return rows, labels
 
 
 def run():
@@ -135,11 +209,12 @@ def run():
     insert_systems(systems, installer_id)
 
     local_weather, events = make_local_weather(rng, days)
-    readings = simulate_readings(rng, systems, weather, local_weather)
+    plan = plan_faults(rng, systems, days)
+    readings, labels = simulate_readings(rng, systems, weather, local_weather, plan, days)
     insert_many("readings", ["time", "system_id", "kwh"], readings)
 
     # Weather dips are labelled per affected system (ground truth for training)
-    labels = [
+    labels += [
         (s["id"], start, end, "weather_dip", depth)
         for s in systems
         for loc, start, end, depth in events
@@ -149,6 +224,17 @@ def run():
 
     print(f"{len(systems)} systems, {len(readings)} readings, {len(events)} local weather dips")
     return systems
+
+
+def label_summary():
+    return query_df("""
+        SELECT fault,
+               COUNT(*)                                  AS episodes,
+               COUNT(DISTINCT system_id)                 AS systems,
+               COUNT(*) FILTER (WHERE end_date IS NULL)  AS still_active,
+               ROUND(AVG(severity)::numeric, 2)          AS avg_loss
+        FROM fault_labels GROUP BY fault ORDER BY fault
+    """)
 
 
 def fleet_summary():
@@ -166,3 +252,5 @@ def fleet_summary():
 if __name__ == "__main__":
     run()
     print(fleet_summary().to_string(index=False))
+    print()
+    print(label_summary().to_string(index=False))

@@ -1,28 +1,30 @@
-# Soorya — 20-Hour Build Plan (solo)
+# Soorya — 20-Hour Build Plan (solo, customer-first)
 
 Stack: React (Vite) + Tailwind + Recharts · FastAPI · PostgreSQL + TimescaleDB · Gemini (bill/quote) · Open-Meteo · scikit-learn RandomForest
 
-| Hour | Task | Done when |
-|---|---|---|
-| 1 | Project structure, TimescaleDB in Docker, schema + hypertables, FastAPI + React skeletons | `/api/health` shows DB + TimescaleDB OK, React page loads |
-| 2 | `weather.py` — Open-Meteo fetch for 14 Kerala locations, cache to disk, load into `weather` | `weather` has 365 rows × 14 locations |
-| 3 | `simulate.py` — 100 systems, daily readings = capacity × sunlight × PR + noise | `readings` populated, numbers look sane |
-| 4 | `simulate.py` — fault injection (soiling, string failure, inverter off) with labels | ~10–15 faulty systems, labels saved |
-| 5 | `expected.py` — expected kWh, ratio, 7-day rolling mean → `health` | Rolling line visible in a quick plot |
-| 6 | `features.py` — 7-day features (mean, change, slope, std, zero days, rain, recovery, peer mean) | Feature table with labels |
-| 7 | `train.py` — RandomForest, 80/20 split, accuracy, confusion matrix → `model.pkl` | Metrics printed + saved to JSON |
-| 8 | `predict.py` — classify every system, write `alerts`, alert text, top-3 "why" features | Alerts table filled with readable text |
-| 9 | `audit.py` — Gemini bill reader (units, load, tariff) | Real KSEB bill → correct JSON |
-| 10 | `audit.py` — Gemini quote reader + sizing + payback + verdict | Bill + quote → verdict card JSON |
-| 11 | FastAPI endpoints: audit, systems, system health, alerts, fleet, model stats | All endpoints return data |
-| 12 | Frontend: Home + Quote Audit page | Upload → verdict works in browser |
-| 13 | Frontend: My System page (chart actual vs expected + rolling, badge, alerts, why) | Faulty system shows alert |
-| 14 | Frontend: Installer dashboard + needs-attention list | "7 of 100 need attention" |
-| 15 | Warranty tracker, monthly report, model stats page — **FEATURE FREEZE** | All 5 screens work |
-| 16 | `csv_import.py` — Growatt / Solis / Deye parsers + real family data | Real CSV shows on dashboard |
-| 17 | End-to-end testing, bug fixes | Full demo story runs without errors |
-| 18 | UI polish, cache Gemini outputs, `pg_dump` of demo DB | Demo works offline |
-| 19 | Rehearse demo ×3, record backup video | Video saved |
-| 20 | Slides + buffer | Ready |
+**Primary user: the homeowner.** Installer dashboard is secondary (footer link).
 
-Breaks: 20 min after hours 4, 8, 12, 16.
+| Hour | Task | Status |
+|---|---|---|
+| 1 | Project structure, TimescaleDB in Docker, schema + hypertables, FastAPI + React skeletons | ✅ |
+| 2 | `weather.py`: Open-Meteo for 14 Kerala locations, cached, loaded into `weather` | ✅ |
+| 3 | `simulate.py`: 100 systems, daily readings, local weather dips | ✅ |
+| 4 | `simulate.py`: fault injection (soiling, string failure, inverter off) with labels | ✅ |
+| 5 | `expected.py`: expected kWh, commissioning baseline, 7-day rolling mean → `health` | ✅ |
+| 6 | `features.py`: 12 seven-day features incl. neighbour median | ✅ |
+| 7 | `train.py`: RandomForest, grouped CV (96.3%), hero held out (94.3%) | ✅ |
+| 8 | `predict.py`: daily labels, persistent-fault alerts with reasons, API endpoints | ✅ |
+| 9 | `audit.py`: Gemini bill reader (cached, fallback models) | ✅ |
+| 10 | `audit.py`: Gemini quote reader + sizing + payback + verdict + sample quote | ✅ |
+| 11 | **Customer:** Home + Quote Audit page (upload, edit numbers, verdict, chart, flags, questions, WhatsApp share, `?demo=1`) | ✅ |
+| 12 | **Customer:** My System page: health score, actual vs expected chart, plain-language alert, warranty status, money lost | |
+| 13 | **Customer:** Connect my inverter: upload Growatt / Solis / Deye CSV (`csv_import.py`) → own system page | |
+| 14 | **Customer:** Monthly report (units, ₹ saved, health) + share, warranty countdown | |
+| 15 | **Customer:** Quote audit → "after you install, monitor it here" link; Malayalam labels on key screens. **FEATURE FREEZE** | |
+| 16 | Secondary: minimal installer view + model stats page | |
+| 17 | End-to-end testing, bug fixes | |
+| 18 | UI polish, phone layout check, `pg_dump` of demo DB | |
+| 19 | Rehearse demo ×3, record backup video | |
+| 20 | Slides + buffer | |
+
+Demo entry points: `/audit?demo=1` (quote check), `/system/1` (Nair residence string failure).

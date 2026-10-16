@@ -7,3 +7,5 @@ data/weather_cache/
 data/gemini_cache/
 frontend/node_modules/
 frontend/dist/
+data/samples/*
+!data/samples/.gitkeep

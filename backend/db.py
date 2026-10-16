@@ -2,12 +2,21 @@
 from contextlib import contextmanager
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import psycopg2
+from psycopg2.extensions import AsIs, register_adapter
 from psycopg2.extras import execute_values
 
 from config import DATABASE_URL
 from locations import LOCATIONS
+
+# Let numpy numbers go straight into SQL
+register_adapter(np.float64, AsIs)
+register_adapter(np.float32, AsIs)
+register_adapter(np.int64, AsIs)
+register_adapter(np.int32, AsIs)
+register_adapter(np.bool_, lambda b: AsIs(bool(b)))
 
 
 @contextmanager

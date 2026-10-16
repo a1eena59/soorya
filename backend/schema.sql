@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS systems (
     installer_id    INT REFERENCES installers(id),
     source          TEXT NOT NULL DEFAULT 'simulated'   -- simulated | csv
 );
+-- Commissioning baseline: this roof's median actual/expected in its first 30 days
+ALTER TABLE systems ADD COLUMN IF NOT EXISTS baseline DOUBLE PRECISION;
 
 -- Time-series tables (hypertables) -----------------------------------------
 
@@ -67,23 +69,30 @@ CREATE TABLE IF NOT EXISTS fault_labels (
     start_date  DATE NOT NULL,
     fault       TEXT NOT NULL,            -- weather_dip | soiling | string_failure | inverter_off
     severity    DOUBLE PRECISION,
-    PRIMARY KEY (system_id, start_date)
+    PRIMARY KEY (system_id, start_date, fault)
 );
 ALTER TABLE fault_labels ADD COLUMN IF NOT EXISTS end_date DATE;   -- NULL = never fixed
 
 -- Outputs -------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS alerts (
-    id          SERIAL PRIMARY KEY,
-    system_id   INT NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
-    start_date  DATE NOT NULL,
-    label       TEXT NOT NULL,
-    confidence  DOUBLE PRECISION,
-    loss_pct    DOUBLE PRECISION,
-    message     TEXT,
-    reasons     JSONB,
-    status      TEXT NOT NULL DEFAULT 'open',
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id              SERIAL PRIMARY KEY,
+    system_id       INT NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+    start_date      DATE NOT NULL,            -- estimated fault onset
+    detected_date   DATE NOT NULL,            -- first day the model was sure
+    end_date        DATE,                     -- NULL = still happening
+    label           TEXT NOT NULL,            -- soiling | string_failure | inverter_off
+    confidence      DOUBLE PRECISION,
+    loss_pct        DOUBLE PRECISION,         -- total drop vs expected
+    weather_pct     DOUBLE PRECISION,         -- part explained by local weather (peers)
+    fault_pct       DOUBLE PRECISION,         -- the rest
+    rupees_per_month DOUBLE PRECISION,
+    audience        TEXT NOT NULL,            -- technician | homeowner
+    action          TEXT,
+    message         TEXT,
+    reasons         JSONB,
+    status          TEXT NOT NULL DEFAULT 'open',   -- open | resolved
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS audits (
