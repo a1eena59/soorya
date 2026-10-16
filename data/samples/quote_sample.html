@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2937; margin: 0; background: #fff; }
+  .page { width: 820px; padding: 36px 40px; position: relative; }
+  .head { display: flex; justify-content: space-between; border-bottom: 3px solid #f59e0b; padding-bottom: 12px; }
+  .brand { font-size: 26px; font-weight: 700; color: #b45309; }
+  .brand small { display: block; font-size: 12px; font-weight: 400; color: #4b5563; }
+  .meta { text-align: right; font-size: 13px; line-height: 1.6; }
+  h2 { font-size: 18px; margin: 18px 0 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; }
+  th { background: #fef3c7; }
+  td.amt, th.amt { text-align: right; }
+  .total td { font-weight: 700; background: #fffbeb; }
+  .box { border: 1px solid #d1d5db; border-radius: 6px; padding: 10px 14px; font-size: 13px; line-height: 1.6; margin-top: 10px; }
+  .highlight { background: #ecfdf5; border-color: #10b981; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .foot { font-size: 11px; color: #6b7280; margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 8px; }
+  .stamp { position: absolute; top: 300px; left: 160px; transform: rotate(-24deg); font-size: 90px; font-weight: 800;
+           color: rgba(220, 38, 38, 0.10); letter-spacing: 8px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="stamp">SAMPLE</div>
+  <div class="head">
+    <div class="brand">☀ Sunrise Solar Energy
+      <small>Rooftop Solar Solutions · Kakkanad, Kochi, Kerala · Fictional company for demo</small>
+    </div>
+    <div class="meta">
+      <b>QUOTATION</b><br>
+      Quote No: SSE/Q/2026/0417<br>
+      Date: 10/10/2026<br>
+      Valid till: 25/10/2026
+    </div>
+  </div>
+
+  <h2>Customer</h2>
+  <div class="box">
+    Name: ______________________ &nbsp;&nbsp; Location: Kochi, Ernakulam<br>
+    Connection: KSEB LT-1A Domestic, Single phase
+  </div>
+
+  <h2>Proposed System: 5 kW On-Grid Rooftop Solar</h2>
+  <table>
+    <tr><th>#</th><th>Item</th><th>Specification</th><th>Qty</th><th class="amt">Amount (₹)</th></tr>
+    <tr><td>1</td><td>Solar PV Modules</td><td>Mono PERC 540 Wp, DCR</td><td>10 Nos</td><td class="amt">1,62,000</td></tr>
+    <tr><td>2</td><td>Grid-tie Inverter</td><td>5 kW single-phase string inverter, WiFi monitoring</td><td>1 No</td><td class="amt">58,000</td></tr>
+    <tr><td>3</td><td>Mounting Structure</td><td>GI elevated structure, 2 m height</td><td>1 Set</td><td class="amt">42,000</td></tr>
+    <tr><td>4</td><td>DC &amp; AC Cabling, ACDB / DCDB</td><td>4 sq mm DC cable, SPD, MCB</td><td>1 Lot</td><td class="amt">18,000</td></tr>
+    <tr><td>5</td><td>Earthing &amp; Lightning Arrestor</td><td>3 chemical earth pits, 1 LA</td><td>1 Set</td><td class="amt">12,000</td></tr>
+    <tr><td>6</td><td>Installation &amp; Commissioning</td><td>Including transport</td><td>-</td><td class="amt">15,000</td></tr>
+    <tr><td>7</td><td>KSEB Net-metering Application</td><td>Documentation and liaison</td><td>-</td><td class="amt">5,000</td></tr>
+    <tr><td></td><td colspan="3">Sub Total</td><td class="amt">3,12,000</td></tr>
+    <tr><td></td><td colspan="3">GST (blended)</td><td class="amt">28,000</td></tr>
+    <tr class="total"><td></td><td colspan="3">TOTAL (incl. GST)</td><td class="amt">3,40,000</td></tr>
+  </table>
+
+  <div class="grid">
+    <div class="box highlight">
+      <b>Your Benefits</b><br>
+      ✔ Generates up to <b>25 units per day</b> (750 units/month)<br>
+      ✔ <b>Zero electricity bill</b> from day one<br>
+      ✔ Payback in just <b>3 years</b><br>
+      ✔ Free power for 25+ years
+    </div>
+    <div class="box">
+      <b>Warranty</b><br>
+      Solar panels: 12 years product, 25 years performance<br>
+      Inverter: 5 years<br>
+      Workmanship / installation: 2 years<br>
+      Structure: 5 years
+    </div>
+  </div>
+
+  <div class="box">
+    <b>Payment Terms:</b> 70% advance with order, 30% on completion of installation.<br>
+    <b>Timeline:</b> Installation within 15 days of advance. Net-meter as per KSEB schedule.
+  </div>
+
+  <div class="foot">
+    SAMPLE QUOTATION CREATED FOR THE SOORYA HACKATHON PROTOTYPE. Sunrise Solar Energy is a fictional company.
+    Prices are illustrative.
+  </div>
+</div>
+</body>
+</html>

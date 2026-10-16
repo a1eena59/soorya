@@ -9,3 +9,7 @@ frontend/node_modules/
 frontend/dist/
 data/samples/*
 !data/samples/.gitkeep
+# Fictional / synthetic samples are safe to share; real bills stay private
+!data/samples/quote_sample.html
+!data/samples/quote_sample.png
+!data/samples/sample_*_export.csv
