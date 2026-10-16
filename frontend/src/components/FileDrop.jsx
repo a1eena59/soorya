@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-export default function FileDrop({ label, hint, onFile, busy, done }) {
+export default function FileDrop({ label, hint, onFile, busy, done, accept = "image/*,application/pdf", busyText = "Reading with AI…" }) {
   const input = useRef(null);
   const [over, setOver] = useState(false);
   const [name, setName] = useState(null);
@@ -25,14 +25,13 @@ export default function FileDrop({ label, hint, onFile, busy, done }) {
       <input
         ref={input}
         type="file"
-        accept="image/*,application/pdf"
-        capture="environment"
+        accept={accept}
         className="hidden"
         onChange={(e) => pick(e.target.files[0])}
       />
       <div className="font-semibold">{label}</div>
       <div className="text-sm text-slate-500 mt-1">
-        {busy ? "Reading with AI…" : done ? `✓ ${name || "Read"}` : hint}
+        {busy ? busyText : done ? `✓ ${name || "Read"}` : hint}
       </div>
     </button>
   );

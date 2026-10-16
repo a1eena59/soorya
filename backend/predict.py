@@ -22,6 +22,7 @@ from train import load_model
 MIN_CONFIDENCE = 0.5
 RECOVERED_DAYS = 3        # a fault only ends after this many recovered days
 RECOVERED_VS_PEERS = -0.08  # recovered = back within 8% of the neighbours
+MIN_SOILING_LOSS = 0.05    # dust alerts only when it costs at least 5%
 MIN_DAYS = {"inverter_off": 3, "string_failure": 5, "soiling": 7}
 
 ACTIONS = {
@@ -112,7 +113,10 @@ def estimate_onset(sys_df, label, start):
 
 def reasons_for(label, r, run_df, onset, end):
     own, peer = r.rolling_mean_7, r.peer_median_7
-    if peer >= 0.9:
+    if r.peer_count == 0:
+        neighbours = (f"Compared with satellite sunlight for your area: this roof is at {own:.0%} of expected "
+                      f"(no neighbouring systems on record yet)")
+    elif peer >= 0.9:
         neighbours = f"Neighbours normal: {int(r.peer_count)} nearby systems are at {peer:.0%} of expected, this roof is at {own:.0%}"
     else:
         neighbours = (f"Neighbours are also low ({peer:.0%}, local weather), "
@@ -141,16 +145,18 @@ def reasons_for(label, r, run_df, onset, end):
     return reasons
 
 
-def message_for(label, system, onset, end, loss, weather, fault, rupees):
+def message_for(label, system, onset, end, loss, weather, fault, rupees, has_peers=True):
     warranty = system["warranty_until"]
+    weather_txt = (f"Local weather explains {weather:.0%}. The remaining {fault:.0%}" if has_peers
+                   else f"Satellite sunlight for your area is already accounted for. The {fault:.0%} drop")
     if label == "soiling":
         msg = (f"Output has slowly fallen {loss:.0%} below expected since {fmt(onset)}. "
-               f"Local weather explains {weather:.0%}. The remaining {fault:.0%} looks like dust on the panels. "
+               f"{weather_txt} looks like dust on the panels. "
                f"Cleaning should recover about ₹{rupees:,.0f} a month.")
     else:
         what = ("one panel string offline" if label == "string_failure" else "the inverter not producing")
-        msg = (f"Generation dropped {loss:.0%} from {fmt(onset)}. Local weather explains {weather:.0%}. "
-               f"The remaining {fault:.0%} is consistent with {what}. Costing about ₹{rupees:,.0f} a month.")
+        msg = (f"Generation dropped {loss:.0%} from {fmt(onset)}. {weather_txt} "
+               f"is consistent with {what}. Costing about ₹{rupees:,.0f} a month.")
         if warranty:
             msg += (f" Covered under workmanship warranty until {fmt(warranty)}." if onset <= warranty
                     else f" Workmanship warranty ended {fmt(warranty)}.")
@@ -161,10 +167,10 @@ def message_for(label, system, onset, end, loss, weather, fault, rupees):
 
 def build_alerts(df):
     systems = query_df("SELECT id, warranty_until FROM systems").set_index("id").to_dict("index")
-    last_day = df["day"].max()
     alerts = []
     for sid, sys_df in df.groupby("system_id"):
         sys_df = sys_df.reset_index(drop=True)
+        last_day = sys_df["day"].max()                     # each system's own "today"
         for label, a, b in find_runs(sys_df):
             run_df = sys_df.iloc[a:b + 1]
             r = sys_df.iloc[b]                                  # latest state of this fault
@@ -175,6 +181,8 @@ def build_alerts(df):
             loss = max(0.0, 1 - r.rolling_mean_7)
             weather = min(loss, max(0.0, 1 - r.peer_median_7))
             fault = loss - weather
+            if label == "soiling" and fault < MIN_SOILING_LOSS:
+                continue                                    # not worth the homeowner's time
             expected_month = sys_df["expected_kwh"].iloc[max(0, b - 29):b + 1].mean() * 30
             rupees = fault * expected_month * TARIFF_RS_PER_UNIT
             audience, action = ACTIONS[label]
@@ -184,7 +192,7 @@ def build_alerts(df):
                 round(float(run_df[f"p_{label}"].mean()), 3),
                 round(loss, 3), round(weather, 3), round(fault, 3), round(rupees, 0),
                 audience, action,
-                message_for(label, systems[sid], onset, end, loss, weather, fault, rupees),
+                message_for(label, systems[sid], onset, end, loss, weather, fault, rupees, r.peer_count > 0),
                 json.dumps(reasons_for(label, r, run_df, onset, end)),
                 "open" if end is None else "resolved",
             ))

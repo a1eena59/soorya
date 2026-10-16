@@ -216,9 +216,10 @@ def read_quote(image: bytes, mime_type: str = "image/jpeg"):
 
 def yield_per_kw(location):
     """kWh one kW produces in a year at this location, from real satellite sunlight."""
-    from config import PERFORMANCE_RATIO
+    from config import END_DATE, PERFORMANCE_RATIO, START_DATE
     from db import query_df
-    sun = query_df("SELECT SUM(sunlight_kwh_m2) AS s FROM weather WHERE location = %s", [location]).iloc[0, 0]
+    sun = query_df("SELECT SUM(sunlight_kwh_m2) AS s FROM weather WHERE location = %s AND time BETWEEN %s AND %s",
+                   [location, START_DATE, END_DATE]).iloc[0, 0]
     if sun is None:
         raise ValueError(f"No weather data for {location}")
     return float(sun) * PERFORMANCE_RATIO

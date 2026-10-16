@@ -1,13 +1,17 @@
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from datetime import date
+
+import numpy as np
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-import numpy as np
-
 from audit import read_bill, read_quote, save_audit, verdict
 from config import ROOT
+from csv_import import ImportError_, delete_system, import_system
+from customer import monthly_report, system_summary
 from db import db_status, query_df
 from expected import get_health
+import installer
 from predict import get_alerts
 from train import load_metrics
 from weather import get_weather, summary
@@ -190,3 +194,155 @@ def audit_demo():
 @app.get("/api/locations")
 def locations():
     return records(query_df("SELECT name, district FROM locations ORDER BY name"))
+
+
+@app.get("/api/systems/{system_id}/summary")
+def system_summary_api(system_id: int):
+    summary = system_summary(system_id)
+    if summary is None:
+        raise HTTPException(404, "System not found or has no data yet")
+    return summary
+
+
+def _import(raw, owner_name, location, capacity_kw, install_date, warranty_until):
+    try:
+        return import_system(raw, owner_name, location, capacity_kw, install_date, warranty_until)
+    except ImportError_ as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/systems/import")
+async def import_csv(
+    file: UploadFile = File(...),
+    owner_name: str = Form(...),
+    location: str = Form(...),
+    capacity_kw: float = Form(...),
+    install_date: date | None = Form(None),
+    warranty_until: date | None = Form(None),
+):
+    """Customer uploads their inverter portal export and gets a monitored system."""
+    return _import(await file.read(), owner_name, location, capacity_kw, install_date, warranty_until)
+
+
+DEMO_CSV = ROOT / "data" / "samples" / "sample_daily_export.csv"
+DEMO_OWNER = "Menon residence (sample)"
+
+
+@app.post("/api/systems/import/demo")
+def import_demo():
+    """Sample export (real 2026 Kochi weather, string failure from 20 Aug 2026). Replaces any earlier demo import."""
+    if not DEMO_CSV.exists():
+        raise HTTPException(404, "Run tools/make_sample_exports.py first")
+    delete_system(DEMO_OWNER)
+    return _import(DEMO_CSV.read_bytes(), DEMO_OWNER, "Kochi", 4.0, date(2025, 11, 20), date(2030, 11, 20))
+
+
+@app.get("/api/systems/{system_id}/report")
+def system_report(system_id: int, month: str | None = None):
+    """Monthly report; month as YYYY-MM, default the latest month with data."""
+    report = monthly_report(system_id, month)
+    if report is None:
+        raise HTTPException(404, "No data for this system yet")
+    return report
+
+
+# --- Installer console ------------------------------------------------------------
+
+@app.get("/api/installer/overview")
+def installer_overview():
+    return installer.overview()
+
+
+@app.get("/api/installer/fleet")
+def installer_fleet():
+    return installer.fleet()
+
+
+@app.get("/api/installer/technicians")
+def installer_technicians():
+    from config import TECHNICIANS
+    return TECHNICIANS
+
+
+def _system(system_id):
+    s = next((r for r in installer.fleet() if r["id"] == system_id), None)
+    if s is None:
+        raise HTTPException(404, "System not found")
+    return s
+
+
+@app.get("/api/installer/systems/{system_id}/compose")
+def installer_compose(system_id: int, channel: str = "sms", kind: str | None = None):
+    """Ready-made message the installer can edit before sending."""
+    s = _system(system_id)
+    kind = kind or installer.suggested_kind(s)
+    return {"kind": kind, **installer.compose(s, kind, channel)}
+
+
+class NotifyRequest(BaseModel):
+    system_id: int
+    channel: str                 # sms | email
+    kind: str
+    message: str
+    subject: str | None = None
+
+
+@app.post("/api/installer/notify")
+def installer_notify(req: NotifyRequest):
+    if req.channel not in ("sms", "email"):
+        raise HTTPException(400, "channel must be sms or email")
+    s = _system(req.system_id)
+    recipient = s["phone"] if req.channel == "sms" else s["email"]
+    return installer.send_message(s["id"], (s["issue"] or {}).get("alert_id"), req.channel, recipient,
+                                  req.subject, req.message, req.kind)
+
+
+class BulkNotifyRequest(BaseModel):
+    lane: str = "customer"
+    channel: str = "sms"
+
+
+@app.post("/api/installer/notify/bulk")
+def installer_notify_bulk(req: BulkNotifyRequest):
+    return installer.notify_bulk(req.lane, req.channel)
+
+
+@app.get("/api/installer/notifications")
+def installer_notifications():
+    return records(installer.notifications())
+
+
+class WorkOrderRequest(BaseModel):
+    system_id: int
+    technician: str
+    scheduled_date: date
+    notes: str | None = None
+
+
+@app.post("/api/installer/work-orders")
+def installer_create_work_order(req: WorkOrderRequest):
+    s = _system(req.system_id)
+    try:
+        oid = installer.create_work_order(s["id"], (s["issue"] or {}).get("alert_id"), req.technician,
+                                          req.scheduled_date, req.notes)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"id": oid}
+
+
+class WorkOrderUpdate(BaseModel):
+    status: str
+
+
+@app.patch("/api/installer/work-orders/{order_id}")
+def installer_update_work_order(order_id: int, req: WorkOrderUpdate):
+    try:
+        installer.update_work_order(order_id, req.status)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
+
+
+@app.get("/api/installer/work-orders")
+def installer_work_orders():
+    return records(installer.work_orders())

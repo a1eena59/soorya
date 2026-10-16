@@ -37,3 +37,9 @@ OVERSIZE_FACTOR = 1.25          # quoted > 125% of what usage needs
 UNDERSIZE_FACTOR = 0.75
 MIN_WORKMANSHIP_YEARS = 5
 MAX_ADVANCE_PCT = 50
+
+# Installer console (demo)
+INSTALLER_NAME = "Sunrise Solar Energy, Kochi"     # fictional installer
+TECHNICIANS = ["Arun P", "Biju Thomas", "Sreeja K"]  # fictional technicians
+VISIT_COST_RS = 1200                                # cost of one technician visit (time + travel)
+UNDERPERFORMING_PCT = 90                            # below this % of expected = underperforming

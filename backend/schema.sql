@@ -113,3 +113,32 @@ SELECT time_bucket('1 day', time, 'Asia/Kolkata') AS day,
 FROM readings
 GROUP BY day, system_id
 WITH NO DATA;
+
+-- Installer console ------------------------------------------------------------
+
+ALTER TABLE systems ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE systems ADD COLUMN IF NOT EXISTS email TEXT;
+
+CREATE TABLE IF NOT EXISTS work_orders (
+    id              SERIAL PRIMARY KEY,
+    system_id       INT NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+    alert_id        INT REFERENCES alerts(id) ON DELETE SET NULL,
+    technician      TEXT NOT NULL,
+    scheduled_date  DATE NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'scheduled',   -- scheduled | done | cancelled
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id          SERIAL PRIMARY KEY,
+    system_id   INT NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+    alert_id    INT REFERENCES alerts(id) ON DELETE SET NULL,
+    channel     TEXT NOT NULL,                -- sms | email
+    recipient   TEXT NOT NULL,
+    subject     TEXT,
+    message     TEXT NOT NULL,
+    kind        TEXT NOT NULL,                -- clean_panels | visit_scheduled | fault_found | check_in
+    status      TEXT NOT NULL DEFAULT 'logged_demo',   -- logged_demo | sent | failed
+    sent_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);

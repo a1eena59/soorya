@@ -55,16 +55,21 @@ def to_rows(name, daily):
     return rows
 
 
+def load_range(name, lat, lon, start, end):
+    """Weather for any date range (e.g. a customer's CSV), cached and stored."""
+    rows = to_rows(name, fetch_daily(name, lat, lon, start, end))
+    insert_many(
+        "weather",
+        ["time", "location", "sunlight_kwh_m2", "rain_mm"],
+        rows,
+        conflict="(location, time) DO UPDATE SET sunlight_kwh_m2 = EXCLUDED.sunlight_kwh_m2, rain_mm = EXCLUDED.rain_mm",
+    )
+    return len(rows)
+
+
 def load_all():
     for name, _district, lat, lon in LOCATIONS:
-        rows = to_rows(name, fetch_daily(name, lat, lon))
-        insert_many(
-            "weather",
-            ["time", "location", "sunlight_kwh_m2", "rain_mm"],
-            rows,
-            conflict="(location, time) DO UPDATE SET sunlight_kwh_m2 = EXCLUDED.sunlight_kwh_m2, rain_mm = EXCLUDED.rain_mm",
-        )
-        print(f"  {name}: {len(rows)} days")
+        print(f"  {name}: {load_range(name, lat, lon, START_DATE, END_DATE)} days")
 
 
 def get_weather(location, start=None, end=None):
@@ -87,9 +92,10 @@ def summary():
                ROUND(SUM(sunlight_kwh_m2)::numeric, 0) AS yearly_sun_kwh_m2,
                ROUND(SUM(rain_mm)::numeric, 0)         AS yearly_rain_mm
         FROM weather
+        WHERE time BETWEEN %s AND %s
         GROUP BY location
         ORDER BY location
-    """)
+    """, [START_DATE, END_DATE])
 
 
 if __name__ == "__main__":

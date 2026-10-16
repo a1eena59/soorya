@@ -1,8 +1,8 @@
-# Soorya — 20-Hour Build Plan (solo, customer-first)
+# Soorya — 20-Hour Build Plan (solo, installer-first)
 
 Stack: React (Vite) + Tailwind + Recharts · FastAPI · PostgreSQL + TimescaleDB · Gemini (bill/quote) · Open-Meteo · scikit-learn RandomForest
 
-**Primary user: the homeowner.** Installer dashboard is secondary (footer link).
+**Primary user: the installer** (maintenance console at `/`). Customer app at `/customer` (quote check, my system, monthly report, connect inverter).
 
 | Hour | Task | Status |
 |---|---|---|
@@ -17,14 +17,18 @@ Stack: React (Vite) + Tailwind + Recharts · FastAPI · PostgreSQL + TimescaleDB
 | 9 | `audit.py`: Gemini bill reader (cached, fallback models) | ✅ |
 | 10 | `audit.py`: Gemini quote reader + sizing + payback + verdict + sample quote | ✅ |
 | 11 | **Customer:** Home + Quote Audit page (upload, edit numbers, verdict, chart, flags, questions, WhatsApp share, `?demo=1`) | ✅ |
-| 12 | **Customer:** My System page: health score, actual vs expected chart, plain-language alert, warranty status, money lost | |
-| 13 | **Customer:** Connect my inverter: upload Growatt / Solis / Deye CSV (`csv_import.py`) → own system page | |
-| 14 | **Customer:** Monthly report (units, ₹ saved, health) + share, warranty countdown | |
-| 15 | **Customer:** Quote audit → "after you install, monitor it here" link; Malayalam labels on key screens. **FEATURE FREEZE** | |
-| 16 | Secondary: minimal installer view + model stats page | |
-| 17 | End-to-end testing, bug fixes | |
-| 18 | UI polish, phone layout check, `pg_dump` of demo DB | |
+| 12 | **Customer:** My System page: status, alert + reasons, WhatsApp to installer, money tiles, warranty countdown, chart, past problems | ✅ |
+| 13 | **Customer:** Connect my inverter: CSV import (daily / power / lifetime formats), 2026 weather, neighbour refresh | ✅ |
+| 14 | **Customer:** Monthly report: month picker, headline, made / performance / saved / lost, daily chart, weather, problems, WhatsApp share, save as PDF | ✅ |
+| 15 | **Installer console:** dashboard (KPIs, priority list, area map, health trend, issues by area), work queue (technician / customer fix / watching), fleet table (filters, sparklines, CSV export), system panel, schedule visits, SMS/email to customers (demo outbox), visits board, detection accuracy | ✅ |
+| 16 | Real SMS / email gateway (optional), visit-done → confirm fix from data | |
+| 17 | End-to-end testing, bug fixes. **FEATURE FREEZE** | |
+| 18 | UI polish, `pg_dump` of demo DB, reset script check | |
 | 19 | Rehearse demo ×3, record backup video | |
 | 20 | Slides + buffer | |
 
-Demo entry points: `/audit?demo=1` (quote check), `/system/1` (Nair residence string failure).
+Demo entry points: `/` installer dashboard, `/queue`, `/fleet?system=1` (Nair residence panel), `/visits`, `/messages`, `/detection`. Customer app: `/customer`, `/audit?demo=1`, `/system/1`, `/connect`.
+
+Reset the console demo (visits + messages): `python tools/seed_console_demo.py` (from `backend/`).
+
+Sample exports: `python tools/make_sample_exports.py` (from `backend/`).

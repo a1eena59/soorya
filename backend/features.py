@@ -103,6 +103,8 @@ def build_features(system_ids=None, peers_from_all=True):
     grp = df.groupby(["location", "day"])["rolling_mean_7"]
     df["peer_count"] = grp.transform("count") - 1
     df["peer_median_7"] = grp.transform("median")
+    # No neighbours on record for these dates: compare with the satellite expectation only
+    df.loc[df["peer_count"] == 0, "peer_median_7"] = 1.0
     df["vs_peers_7"] = df["rolling_mean_7"] / df["peer_median_7"].clip(lower=0.05) - 1
 
     df = df[df["prev_mean_7"].notna()].copy()        # need two full weeks of history
