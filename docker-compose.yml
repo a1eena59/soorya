@@ -1,0 +1,16 @@
+services:
+  db:
+    # Pulled via Google's Docker Hub mirror (Docker Hub is blocked on some networks)
+    image: mirror.gcr.io/timescale/timescaledb:latest-pg16
+    container_name: soorya-db
+    environment:
+      POSTGRES_USER: soorya
+      POSTGRES_PASSWORD: soorya
+      POSTGRES_DB: soorya
+    ports:
+      - "5432:5432"
+    volumes:
+      - soorya-data:/var/lib/postgresql/data
+
+volumes:
+  soorya-data:
