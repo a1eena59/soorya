@@ -71,7 +71,7 @@ export default function Connect() {
         </button>
       </header>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+      <section className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5 space-y-4">
         <h2 className="font-semibold text-lg">1. Export from your inverter app</h2>
         <ul className="text-sm space-y-1">
           {HOW_TO.map(([brand, steps]) => (
@@ -85,7 +85,7 @@ export default function Connect() {
                   onFile={setFile} accept=".csv,text/csv" busyText="Checking your data…" />
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5">
         <h2 className="font-semibold text-lg">2. About your system</h2>
         <div className="grid gap-4 sm:grid-cols-2 mt-3">
           <Field label="Name for this system">

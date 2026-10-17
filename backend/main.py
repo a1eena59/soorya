@@ -5,13 +5,13 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from audit import read_bill, read_quote, save_audit, verdict
 from config import ROOT
 from csv_import import ImportError_, delete_system, import_system
 from customer import monthly_report, system_summary
 from db import db_status, query_df
 from expected import get_health
-import installer
+import autopilot
+import maintenance
 from predict import get_alerts
 from train import load_metrics
 from weather import get_weather, summary
@@ -133,64 +133,6 @@ def model_stats():
     return load_metrics()
 
 
-ALLOWED_IMAGES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
-
-
-@app.post("/api/audit/bill")
-async def audit_bill(file: UploadFile = File(...)):
-    if file.content_type not in ALLOWED_IMAGES:
-        raise HTTPException(400, f"Upload a photo or PDF of the bill (got {file.content_type})")
-    try:
-        return read_bill(await file.read(), file.content_type)
-    except RuntimeError as e:
-        raise HTTPException(503, str(e))
-
-
-@app.post("/api/audit/quote")
-async def audit_quote(file: UploadFile = File(...)):
-    if file.content_type not in ALLOWED_IMAGES:
-        raise HTTPException(400, f"Upload a photo or PDF of the quote (got {file.content_type})")
-    try:
-        return read_quote(await file.read(), file.content_type)
-    except RuntimeError as e:
-        raise HTTPException(503, str(e))
-
-
-class VerdictRequest(BaseModel):
-    quote: dict                      # from /api/audit/quote, possibly edited by the user
-    yearly_units: float              # from /api/audit/bill, possibly edited by the user
-    location: str = "Kochi"
-    connected_load_kw: float | None = None
-    bill: dict | None = None         # stored with the audit, optional
-    save: bool = True                # False while the user is editing numbers
-
-
-@app.post("/api/audit/verdict")
-def audit_verdict(req: VerdictRequest):
-    """Pure maths, no Gemini: call again whenever the user edits a number."""
-    try:
-        result = verdict(req.quote, req.yearly_units, req.location, req.connected_load_kw)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    result["audit_id"] = save_audit(req.bill, req.quote, result) if req.save else None
-    return result
-
-
-DEMO_BILL = ROOT / "data" / "samples" / "sample.jpeg"
-DEMO_QUOTE = ROOT / "data" / "samples" / "quote_sample.png"
-
-
-@app.get("/api/audit/demo")
-def audit_demo():
-    """Sample bill + quote for the demo (served from the Gemini cache, works offline)."""
-    if not DEMO_BILL.exists() or not DEMO_QUOTE.exists():
-        raise HTTPException(404, "Demo samples missing in data/samples")
-    return {
-        "bill": read_bill(DEMO_BILL.read_bytes(), "image/jpeg"),
-        "quote": read_quote(DEMO_QUOTE.read_bytes(), "image/png"),
-    }
-
-
 @app.get("/api/locations")
 def locations():
     return records(query_df("SELECT name, district FROM locations ORDER BY name"))
@@ -250,12 +192,12 @@ def system_report(system_id: int, month: str | None = None):
 
 @app.get("/api/installer/overview")
 def installer_overview():
-    return installer.overview()
+    return maintenance.overview()
 
 
 @app.get("/api/installer/fleet")
 def installer_fleet():
-    return installer.fleet()
+    return maintenance.fleet()
 
 
 @app.get("/api/installer/technicians")
@@ -265,7 +207,7 @@ def installer_technicians():
 
 
 def _system(system_id):
-    s = next((r for r in installer.fleet() if r["id"] == system_id), None)
+    s = next((r for r in maintenance.fleet() if r["id"] == system_id), None)
     if s is None:
         raise HTTPException(404, "System not found")
     return s
@@ -275,8 +217,8 @@ def _system(system_id):
 def installer_compose(system_id: int, channel: str = "sms", kind: str | None = None):
     """Ready-made message the installer can edit before sending."""
     s = _system(system_id)
-    kind = kind or installer.suggested_kind(s)
-    return {"kind": kind, **installer.compose(s, kind, channel)}
+    kind = kind or maintenance.suggested_kind(s)
+    return {"kind": kind, **maintenance.compose(s, kind, channel)}
 
 
 class NotifyRequest(BaseModel):
@@ -292,9 +234,7 @@ def installer_notify(req: NotifyRequest):
     if req.channel not in ("sms", "email"):
         raise HTTPException(400, "channel must be sms or email")
     s = _system(req.system_id)
-    recipient = s["phone"] if req.channel == "sms" else s["email"]
-    return installer.send_message(s["id"], (s["issue"] or {}).get("alert_id"), req.channel, recipient,
-                                  req.subject, req.message, req.kind)
+    return maintenance.message_system(s, req.kind, req.channel, text=req.message, subject=req.subject)
 
 
 class BulkNotifyRequest(BaseModel):
@@ -304,12 +244,12 @@ class BulkNotifyRequest(BaseModel):
 
 @app.post("/api/installer/notify/bulk")
 def installer_notify_bulk(req: BulkNotifyRequest):
-    return installer.notify_bulk(req.lane, req.channel)
+    return maintenance.notify_bulk(req.lane, req.channel)
 
 
 @app.get("/api/installer/notifications")
 def installer_notifications():
-    return records(installer.notifications())
+    return records(maintenance.notifications())
 
 
 class WorkOrderRequest(BaseModel):
@@ -323,7 +263,7 @@ class WorkOrderRequest(BaseModel):
 def installer_create_work_order(req: WorkOrderRequest):
     s = _system(req.system_id)
     try:
-        oid = installer.create_work_order(s["id"], (s["issue"] or {}).get("alert_id"), req.technician,
+        oid = maintenance.create_work_order(s["id"], (s["issue"] or {}).get("alert_id"), req.technician,
                                           req.scheduled_date, req.notes)
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -337,7 +277,7 @@ class WorkOrderUpdate(BaseModel):
 @app.patch("/api/installer/work-orders/{order_id}")
 def installer_update_work_order(order_id: int, req: WorkOrderUpdate):
     try:
-        installer.update_work_order(order_id, req.status)
+        maintenance.update_work_order(order_id, req.status)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return {"ok": True}
@@ -345,4 +285,30 @@ def installer_update_work_order(order_id: int, req: WorkOrderUpdate):
 
 @app.get("/api/installer/work-orders")
 def installer_work_orders():
-    return records(installer.work_orders())
+    return records(maintenance.work_orders())
+
+
+
+# --- Autopilot + delivery ---------------------------------------------------------
+
+@app.get("/api/installer/autopilot")
+def autopilot_status():
+    from delivery import channels
+    return {"settings": autopilot.get_settings(), "delivery": channels(),
+            "rules": {"max_visits_per_day": autopilot.MAX_VISITS_PER_DAY,
+                      "real_delivery_per_run": autopilot.REAL_DELIVERY_MAX_PER_RUN}}
+
+
+class AutopilotToggle(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/installer/autopilot")
+def autopilot_toggle(req: AutopilotToggle):
+    """Turning autopilot on acts on the queue immediately."""
+    return autopilot.set_enabled(req.enabled)
+
+
+@app.post("/api/installer/autopilot/run")
+def autopilot_run():
+    return autopilot.run()

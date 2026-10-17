@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api.js";
+import Gauge from "../components/Gauge.jsx";
 import HealthChart from "../components/HealthChart.jsx";
 import { rupees, units } from "../format.js";
 
 const STATUS = {
-  ok: { icon: "✓", cls: "bg-emerald-50 border-emerald-300 text-emerald-900" },
-  weather: { icon: "☁", cls: "bg-sky-50 border-sky-300 text-sky-900" },
-  clean_panels: { icon: "!", cls: "bg-amber-50 border-amber-300 text-amber-900" },
-  needs_technician: { icon: "▲", cls: "bg-red-50 border-red-300 text-red-900" },
+  ok: { icon: "✓", color: "#059669", cls: "bg-emerald-50 border-emerald-300 text-emerald-900" },
+  weather: { icon: "☁", color: "#0284c7", cls: "bg-sky-50 border-sky-300 text-sky-900" },
+  clean_panels: { icon: "!", color: "#d97706", cls: "bg-amber-50 border-amber-300 text-amber-900" },
+  needs_technician: { icon: "▲", color: "#dc2626", cls: "bg-red-50 border-red-300 text-red-900" },
 };
 
 const FAULT_NAMES = {
@@ -23,7 +24,7 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "nume
 
 function Tile({ label, value, sub }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-4 animate-rise">
       <div className="text-sm text-slate-500">{label}</div>
       <div className="text-2xl font-bold mt-1">{value}</div>
       {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
@@ -56,7 +57,7 @@ export default function MySystem() {
   }, [id]);
 
   if (error) return <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">Could not load this system: {error}</div>;
-  if (!summary) return <p className="text-slate-500">Loading…</p>;
+  if (!summary) return <div className="space-y-6"><div className="skeleton h-12 w-72" /><div className="skeleton h-56" /><div className="skeleton h-28" /></div>;
 
   const { system, month } = summary;
   const st = STATUS[summary.status];
@@ -77,45 +78,49 @@ export default function MySystem() {
         </div>
         <div className="text-right">
           <Link to={`/system/${id}/report`}
-                className="inline-block bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                className="inline-block bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
             Monthly report
           </Link>
           <p className="text-sm text-slate-500 mt-1">Data up to {fmtDate(summary.as_of)}</p>
         </div>
       </header>
 
-      <section className={`rounded-xl border-2 p-5 ${st.cls}`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-2xl font-bold">{st.icon} {summary.status_text}</div>
-          {summary.health_pct != null && (
-            <div className="text-right">
-              <div className="text-3xl font-bold">{summary.health_pct}%</div>
-              <div className="text-xs">of what the sun allowed, last 7 days</div>
-            </div>
-          )}
-        </div>
-        {openAlert && (
-          <div className="mt-4 space-y-3">
-            <p className="text-lg">{openAlert.message}</p>
-            <div>
-              <div className="text-sm font-semibold">Why we think so</div>
-              <ul className="list-disc list-inside text-sm mt-1 space-y-0.5">
-                {openAlert.reasons.map((r) => <li key={r}>{r}</li>)}
-              </ul>
-            </div>
-            <p className="text-sm"><b>What to do:</b> {openAlert.action}.</p>
-            {openAlert.audience === "technician" && (
-              <a href={`https://wa.me/?text=${encodeURIComponent(installerMessage(system, openAlert))}`}
-                 target="_blank" rel="noreferrer"
-                 className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
-                Tell my installer on WhatsApp
-              </a>
+      <section className={`rounded-3xl border-2 p-6 animate-rise ${st.cls}`}>
+        <div className="flex flex-col md:flex-row gap-6 md:items-center">
+          <div className="shrink-0 self-center bg-white/70 rounded-full p-2">
+            <Gauge pct={summary.health_pct} color={st.color} label="of what the sun allowed (7 days)" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-2xl md:text-3xl font-bold">{st.icon} {summary.status_text}</div>
+            {openAlert ? (
+              <div className="mt-3 space-y-3">
+                <p className="text-lg leading-relaxed">{openAlert.message}</p>
+                <details className="group rounded-xl bg-white/60 px-4 py-2">
+                  <summary className="cursor-pointer text-sm font-semibold list-none flex items-center justify-between">
+                    How do we know? <span className="text-xs transition group-open:rotate-180">▼</span>
+                  </summary>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {openAlert.reasons.map((r) => <li key={r} className="flex gap-2"><span>→</span>{r}</li>)}
+                  </ul>
+                </details>
+                <p className="text-sm"><b>What to do:</b> {openAlert.action}.</p>
+                {openAlert.audience === "technician" && (
+                  <a href={`https://wa.me/?text=${encodeURIComponent(installerMessage(system, openAlert))}`}
+                     target="_blank" rel="noreferrer"
+                     className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
+                    Tell my installer on WhatsApp
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 text-lg">
+                {summary.status === "weather"
+                  ? "Clouds and rain this week, and nearby systems dropped too. Nothing is wrong with your panels."
+                  : "Your panels are making what the sun allows. We check every day and will tell you if that changes."}
+              </p>
             )}
           </div>
-        )}
-        {!openAlert && summary.status === "ok" && (
-          <p className="mt-3">Your panels are producing what the sun allowed. We check every day and will tell you if that changes.</p>
-        )}
+        </div>
       </section>
 
       <section className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -129,7 +134,7 @@ export default function MySystem() {
               sub={system.warranty_until ? `until ${fmtDate(system.warranty_until)}` : "Add it from your quote"} />
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h2 className="font-semibold text-lg">Generation vs what the sun allowed</h2>
           <div className="flex rounded-lg border border-slate-300 overflow-hidden text-sm">
@@ -145,7 +150,7 @@ export default function MySystem() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5">
           <h2 className="font-semibold">No false alarms on cloudy days</h2>
           <p className="text-sm text-slate-600 mt-2">
             On <b>{summary.weather_low_days} days</b> this year your output was low because of local clouds and rain.
@@ -153,7 +158,7 @@ export default function MySystem() {
             and your neighbours are not, for several days in a row.
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5">
           <h2 className="font-semibold">Since {fmtDate(summary.first_day)}</h2>
           <p className="text-sm text-slate-600 mt-2">
             Your panels made <b>{units(summary.total.generated_kwh)} units</b>, saving about{" "}
@@ -163,7 +168,7 @@ export default function MySystem() {
       </section>
 
       {past.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5">
           <h2 className="font-semibold">Past problems</h2>
           <ul className="mt-2 divide-y divide-slate-100 text-sm">
             {past.map((a) => (

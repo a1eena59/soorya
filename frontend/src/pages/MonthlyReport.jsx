@@ -20,7 +20,7 @@ const fmtDate = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric",
 
 function Stat({ label, value, sub }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 break-inside-avoid">
+    <div className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-4 break-inside-avoid">
       <div className="text-sm text-slate-500">{label}</div>
       <div className="text-2xl font-bold mt-1">{value}</div>
       {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
@@ -99,7 +99,7 @@ export default function MonthlyReport() {
         <p className="text-slate-600">{r.system.name} · {r.system.capacity_kw} kW · {r.system.location}</p>
       </header>
 
-      <section className={`rounded-xl border-2 p-5 ${st.cls}`}>
+      <section className={`rounded-2xl border-2 p-5 animate-rise ${st.cls}`}>
         <div className="text-sm font-semibold uppercase tracking-wide">{st.icon} {st.label}</div>
         <p className="text-xl font-semibold mt-2">{r.headline}</p>
       </section>
@@ -112,7 +112,7 @@ export default function MonthlyReport() {
         <Stat label="Lost to problems" value={rupees(r.lost_rs)} sub={r.lost_kwh ? `${units(r.lost_kwh)} units` : "nothing lost"} />
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 break-inside-avoid">
+      <section className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5 break-inside-avoid">
         <h2 className="font-semibold text-lg">Every day this month</h2>
         <div className="flex flex-wrap gap-4 text-sm text-slate-600 mt-1">
           <span><span className="inline-block w-3 h-3 rounded-sm mr-1 align-middle" style={{ background: MADE }} />Made</span>
@@ -142,7 +142,7 @@ export default function MonthlyReport() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 break-inside-avoid">
+        <div className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5 break-inside-avoid">
           <h2 className="font-semibold">Weather this month</h2>
           <p className="text-sm text-slate-600 mt-2">
             {units(r.weather.rain_mm)} mm of rain, {r.weather.rainy_days} heavy-rain days.{" "}
@@ -151,7 +151,7 @@ export default function MonthlyReport() {
               : "No days where local clouds pulled your output down unusually."}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 break-inside-avoid">
+        <div className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-5 break-inside-avoid">
           <h2 className="font-semibold">Problems this month</h2>
           {r.alerts.length === 0 ? (
             <p className="text-sm text-slate-600 mt-2">None. Your system produced what the sun allowed.</p>

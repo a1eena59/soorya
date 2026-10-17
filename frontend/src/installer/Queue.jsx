@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useConsole } from "./context.jsx";
 import { PageTitle } from "./Layout.jsx";
-import { Button, Chip, LANES, Sparkline, WarrantyChip, ago, rupees, shortDate } from "./ui.jsx";
+import { Button, Chip, LANES, Sparkline, WarrantyChip, ago, rupees, shortDate, PageSkeleton } from "./ui.jsx";
 
 const COLUMNS = [
   ["technician", "Send a technician", "Faults the customer can't fix: string, inverter, wiring."],
@@ -28,9 +28,7 @@ function IssueCard({ s }) {
         {s.issue ? (
           <>
             <div className="mt-2 text-sm font-medium"><span style={{ color: lane.color }}>{lane.icon}</span> {s.issue.name}</div>
-            <div className="text-xs text-slate-600 mt-0.5">
-              -{s.issue.fault_pct}% since {shortDate(s.issue.start_date)} ({s.issue.days_open} d) · {Math.round(s.issue.confidence * 100)}% sure
-            </div>
+            <div className="text-xs text-slate-600 mt-0.5">since {shortDate(s.issue.start_date)}</div>
           </>
         ) : (
           <div className="mt-2 text-sm text-slate-600">{s.today_label === "weather_dip" ? "Local weather dip" : "Slightly below expected"}</div>
@@ -41,8 +39,9 @@ function IssueCard({ s }) {
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <WarrantyChip covered={s.warranty_covered} />
-          {s.work_order && <Chip tone="green">🔧 {s.work_order.technician} · {shortDate(s.work_order.scheduled_date)}</Chip>}
-          {s.last_notified && <Chip tone="blue">✉ {s.last_notified.channel.toUpperCase()} {ago(s.last_notified.sent_at)}</Chip>}
+          {s.work_order && <Chip tone="green">{s.work_order.created_by === "autopilot" ? "🤖" : "🔧"} {s.work_order.technician} · {shortDate(s.work_order.scheduled_date)}</Chip>}
+          {s.issue?.verifying && <Chip tone="blue">✓ Visited {shortDate(s.issue.verifying.visited)} · verifying fix</Chip>}
+          {s.last_notified && !s.work_order && <Chip tone="blue">{s.last_notified.created_by === "autopilot" ? "🤖" : "✉"} Reminded {ago(s.last_notified.sent_at)}</Chip>}
         </div>
       </button>
       {s.lane !== "watch" && (
@@ -52,7 +51,6 @@ function IssueCard({ s }) {
               <Button size="sm" variant={s.work_order ? "secondary" : "dark"} onClick={() => schedule(s)}>
                 {s.work_order ? "Reschedule" : "Schedule visit"}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => notify(s)}>Message</Button>
             </>
           ) : (
             <>
@@ -70,7 +68,7 @@ export default function Queue() {
   const { fleet, overview, refresh, toast } = useConsole();
   const [area, setArea] = useState("");
   const [channel, setChannel] = useState("sms");
-  if (!fleet) return <p className="text-slate-500">Loading…</p>;
+  if (!fleet) return <PageSkeleton />;
 
   const areas = [...new Set(fleet.map((s) => s.location))].sort();
   const shown = fleet.filter((s) => !area || s.location === area);

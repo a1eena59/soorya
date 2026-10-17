@@ -171,7 +171,10 @@ def import_system(raw: bytes, owner_name: str, location: str, capacity_kw: float
     if days < MIN_DAYS:
         raise ImportError_("Weather data is not available for these dates yet. Try again in a few days.")
     refresh_neighbours(location)               # this roof is now a neighbour for others too
-    return {"system_id": sid, **info, "days_with_weather": days}
+    from autopilot import maybe_run
+    ran = maybe_run()                          # new data: autopilot books / messages if it's on
+    return {"system_id": sid, **info, "days_with_weather": days,
+            "autopilot": None if ran is None else {"visits": ran["visits"], "messages": ran["messages"]}}
 
 
 def refresh_neighbours(location):

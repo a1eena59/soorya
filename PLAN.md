@@ -21,13 +21,14 @@ Stack: React (Vite) + Tailwind + Recharts · FastAPI · PostgreSQL + TimescaleDB
 | 13 | **Customer:** Connect my inverter: CSV import (daily / power / lifetime formats), 2026 weather, neighbour refresh | ✅ |
 | 14 | **Customer:** Monthly report: month picker, headline, made / performance / saved / lost, daily chart, weather, problems, WhatsApp share, save as PDF | ✅ |
 | 15 | **Installer console:** dashboard (KPIs, priority list, area map, health trend, issues by area), work queue (technician / customer fix / watching), fleet table (filters, sparklines, CSV export), system panel, schedule visits, SMS/email to customers (demo outbox), visits board, detection accuracy | ✅ |
-| 16 | Real SMS / email gateway (optional), visit-done → confirm fix from data | |
-| 17 | End-to-end testing, bug fixes. **FEATURE FREEZE** | |
+| 16 | Polish: real map (Leaflet + OSM), map page, simpler dashboard, animations + skeletons, mobile sidebar, visit done → "fix being verified", customer redesign (home, gauge, stepper) | ✅ |
+| 17 | Autopilot (auto-book visits + message customers, runs on new data), real delivery to Telegram / email, decluttered dashboard, quote check removed | ✅ |
+| 17b | End-to-end testing, bug fixes. **FEATURE FREEZE** | |
 | 18 | UI polish, `pg_dump` of demo DB, reset script check | |
 | 19 | Rehearse demo ×3, record backup video | |
 | 20 | Slides + buffer | |
 
-Demo entry points: `/` installer dashboard, `/queue`, `/fleet?system=1` (Nair residence panel), `/visits`, `/messages`, `/detection`. Customer app: `/customer`, `/audit?demo=1`, `/system/1`, `/connect`.
+Demo entry points: `/` installer dashboard, `/queue`, `/map`, `/fleet?system=1` (Nair residence panel), `/visits`, `/messages`, `/detection`. Customer app: `/customer`, `/system/1`, `/system/1/report`, `/connect`. Autopilot: `/autopilot`.
 
 Reset the console demo (visits + messages): `python tools/seed_console_demo.py` (from `backend/`).
 

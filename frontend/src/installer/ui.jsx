@@ -92,7 +92,7 @@ export function Sparkline({ values, width = 96, height = 28, color = "#2a78d6" }
 
 export function Card({ title, action, children, className = "" }) {
   return (
-    <section className={`rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm ${className}`}>
+    <section className={`rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm animate-rise ${className}`}>
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 px-5 pt-4">
           <h2 className="font-semibold text-slate-900">{title}</h2>
@@ -109,7 +109,8 @@ export function Kpi({ label, value, sub, tone, icon, onClick }) {
   const Tag = onClick ? "button" : "div";
   return (
     <Tag onClick={onClick}
-         className={`text-left rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-4 ${onClick ? "hover:ring-slate-300 hover:shadow transition" : ""}`}>
+         className={`text-left rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm p-4 animate-rise
+                     ${onClick ? "hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 transition duration-200" : ""}`}>
       <div className="flex items-center gap-2 text-sm text-slate-500">
         {icon && <span style={{ color: accent ?? undefined }} aria-hidden>{icon}</span>}
         {label}
@@ -131,7 +132,7 @@ export function Button({ children, variant = "secondary", size = "md", className
   const sizes = { sm: "px-2.5 py-1 text-xs", md: "px-3.5 py-2 text-sm" };
   return (
     <button {...props}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold disabled:opacity-50
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition duration-150 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100
                         ${variants[variant]} ${sizes[size]} ${className}`}>
       {children}
     </button>
@@ -151,8 +152,8 @@ export function Drawer({ open, onClose, children }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
-      <aside className="relative h-full w-full max-w-2xl bg-slate-50 shadow-2xl overflow-y-auto">{children}</aside>
+      <div className="absolute inset-0 bg-slate-900/30 animate-fade-in" onClick={onClose} />
+      <aside className="relative h-full w-full max-w-2xl bg-slate-50 shadow-2xl overflow-y-auto animate-slide-in">{children}</aside>
     </div>
   );
 }
@@ -162,8 +163,8 @@ export function Dialog({ open, onClose, title, children, footer }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+      <div className="absolute inset-0 bg-slate-900/40 animate-fade-in" onClick={onClose} />
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl animate-pop">
         <div className="flex items-center justify-between px-5 pt-4">
           <h3 className="font-semibold text-lg">{title}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none" aria-label="Close">×</button>
@@ -188,3 +189,56 @@ export const Icon = {
 export function Svg({ children, className = "w-5 h-5" }) {
   return <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>{children}</svg>;
 }
+
+export function Skeleton({ className = "h-24" }) {
+  return <div className={`skeleton ${className}`} />;
+}
+
+export function PageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-10 w-72" />
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}
+      </div>
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Skeleton className="h-96 xl:col-span-3" />
+        <Skeleton className="h-96 xl:col-span-2" />
+      </div>
+    </div>
+  );
+}
+
+// Small (i) that explains a term on hover / focus
+export function Info({ text }) {
+  return (
+    <span tabIndex={0} title={text} aria-label={text}
+          className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold cursor-help align-middle">
+      i
+    </span>
+  );
+}
+
+Icon.map = <path d="M9 3L3 5.5v15.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 3zm0 2.2l6 2.5v11.1l-6-2.5V5.2z" />;
+
+Icon.autopilot = <path d="M12 2a2 2 0 012 2v1h3a3 3 0 013 3v8a3 3 0 01-3 3H7a3 3 0 01-3-3V8a3 3 0 013-3h3V4a2 2 0 012-2zM9 11a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM2 10h1v5H2zm19 0h1v5h-1z" />;
+
+export function Switch({ on, onChange, disabled }) {
+  return (
+    <button role="switch" aria-checked={on} disabled={disabled} onClick={() => onChange(!on)}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-50
+                        ${on ? "bg-emerald-500" : "bg-slate-300"}`}>
+      <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${on ? "translate-x-6" : "translate-x-1"}`} />
+    </button>
+  );
+}
+
+export function ByAutopilot({ who }) {
+  return who === "autopilot" ? <Chip tone="violet" title="Done automatically by Soorya autopilot">🤖 Autopilot</Chip> : null;
+}
+
+export const DELIVERY = {
+  sent: { label: "Delivered", tone: "green" },
+  logged_demo: { label: "Logged (demo)", tone: "slate" },
+  failed: { label: "Failed", tone: "red" },
+};

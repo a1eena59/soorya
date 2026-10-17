@@ -1,4 +1,4 @@
-"""Installer maintenance console: triage lanes, fleet, KPIs, work orders, customer messages.
+"""Installer maintenance console (named maintenance.py: "installer" clashes with a PyPI package): triage lanes, fleet, KPIs, work orders, customer messages.
 
 Every system is sorted into one lane, as of its own latest reading:
   technician  confirmed fault a customer can't fix (string, inverter)   -> schedule a visit
@@ -6,22 +6,38 @@ Every system is sorted into one lane, as of its own latest reading:
   watch       low but explained by weather, or slightly low, no fault   -> no action
   healthy
 
-Messages are LOGGED, not sent (demo). send_message() is the one place to plug in an
-SMS gateway (e.g. MSG91, Twilio) or SMTP.
+Messages are logged, and delivered for real to the presenter's Telegram / inbox when configured
+(delivery.py). A production SMS gateway (MSG91, Twilio) plugs in there too.
 """
 from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
 
-from config import INSTALLER_NAME, TECHNICIANS, TARIFF_RS_PER_UNIT, UNDERPERFORMING_PCT, VISIT_COST_RS
+from config import (INSTALLER_NAME, REAL_DELIVERY_MAX_PER_RUN, TARIFF_RS_PER_UNIT, TECHNICIANS,
+                    UNDERPERFORMING_PCT, VISIT_COST_RS)
 from db import get_conn, query_df
+from delivery import deliver
 from locations import LOCATIONS
 
 LANES = ["technician", "customer", "watch", "healthy"]
 ISSUE_NAMES = {"string_failure": "Panel string offline", "inverter_off": "Inverter not producing",
                "soiling": "Dust on panels"}
 SPARK_DAYS = 30
+COORDS = {name: (lat, lon) for name, _d, lat, lon in LOCATIONS}
+COASTAL = {"Kasaragod", "Kannur", "Kozhikode", "Kochi", "Alappuzha", "Kollam", "Thiruvananthapuram"}
+
+
+def approx_position(system_id, location):
+    """Demo systems only know their district: spread them on a sunflower spiral (<= ~4 km)
+    around the district centre so each roof is its own dot. Same spot every time."""
+    lat, lon = COORDS[location]
+    k = system_id % 17 + 1
+    r, angle = 0.009 * np.sqrt(k), k * 2.39996                    # golden angle
+    dlon = r * np.cos(angle)
+    if location in COASTAL:
+        dlon = abs(dlon)                                           # spread inland, not into the sea
+    return float(round(lat + r * np.sin(angle), 5)), float(round(lon + dlon, 5))
 
 
 def seed_demo_contacts():
@@ -63,11 +79,15 @@ def fleet():
         ORDER BY (audience = 'technician') DESC, rupees_per_month DESC
     """).drop_duplicates("system_id").set_index("system_id")
     orders = query_df("""
-        SELECT DISTINCT ON (system_id) id, system_id, technician, scheduled_date::text, status
+        SELECT DISTINCT ON (system_id) id, system_id, technician, scheduled_date::text, status, created_by
         FROM work_orders WHERE status = 'scheduled' ORDER BY system_id, scheduled_date
     """).set_index("system_id")
+    done = query_df("""
+        SELECT DISTINCT ON (system_id) system_id, technician, scheduled_date
+        FROM work_orders WHERE status = 'done' ORDER BY system_id, scheduled_date DESC
+    """).set_index("system_id")
     notified = query_df("""
-        SELECT DISTINCT ON (system_id) system_id, channel, kind, sent_at
+        SELECT DISTINCT ON (system_id) system_id, channel, kind, sent_at, created_by, status
         FROM notifications ORDER BY system_id, sent_at DESC
     """).set_index("system_id")
 
@@ -100,19 +120,25 @@ def fleet():
         if issue and warranty and lane == "technician":   # dust needs no visit: warranty doesn't apply
             covered = date.fromisoformat(issue["start_date"]) <= warranty
         order = orders.loc[s.id] if s.id in orders.index else None
+        # Technician has been: the fault stays open until the data shows output is back
+        if issue and order is None and s.id in done.index and str(done.loc[s.id].scheduled_date) >= issue["start_date"]:
+            issue["verifying"] = {"technician": done.loc[s.id].technician,
+                                  "visited": str(done.loc[s.id].scheduled_date)}
         note = notified.loc[s.id] if s.id in notified.index else None
         rows.append({
             "id": int(s.id), "name": s.name, "owner_name": s.owner_name, "location": s.location,
             "capacity_kw": float(s.capacity_kw), "phone": s.phone, "email": s.email, "source": s.source,
+            "position": approx_position(int(s.id), s.location),
             "install_date": s.install_date, "warranty_until": str(warranty) if warranty else None,
             "warranty_covered": covered, "as_of": str(l.as_of), "health_pct": health,
             "today_label": l.label, "lane": lane, "issue": issue,
             "spark": spark.get(s.id, []),
             "work_order": None if order is None else {
-                "id": int(order.id), "technician": order.technician,
+                "id": int(order.id), "technician": order.technician, "created_by": order.created_by,
                 "scheduled_date": order.scheduled_date, "status": order.status},
             "last_notified": None if note is None else {
-                "channel": note.channel, "kind": note.kind, "sent_at": note.sent_at.isoformat()},
+                "channel": note.channel, "kind": note.kind, "sent_at": note.sent_at.isoformat(),
+                "created_by": note.created_by, "status": note.status},
         })
     order_key = {lane: i for i, lane in enumerate(LANES)}
     rows.sort(key=lambda r: (order_key[r["lane"]], -(r["issue"] or {}).get("rupees_per_month", 0),
@@ -152,12 +178,11 @@ def overview():
         FROM health GROUP BY 1 HAVING COUNT(*) >= 10 ORDER BY 1 DESC LIMIT 180
     """).sort_values("day")
 
-    coords = {name: (lat, lon) for name, _d, lat, lon in LOCATIONS}
     by_area = []
     for loc, g in df.groupby("location"):
         counts = g["lane"].value_counts()
         by_area.append({
-            "location": loc, "lat": coords[loc][0], "lon": coords[loc][1], "systems": len(g),
+            "location": loc, "lat": COORDS[loc][0], "lon": COORDS[loc][1], "systems": len(g),
             **{lane: int(counts.get(lane, 0)) for lane in LANES},
             "avg_health": round(float(g["health_pct"].mean())),
             "rupees_per_month": round(sum((r or {}).get("rupees_per_month", 0) for r in g["issue"])),
@@ -168,7 +193,7 @@ def overview():
     scheduled = int(query_df("SELECT COUNT(*) FROM work_orders WHERE status = 'scheduled'").iloc[0, 0])
     return {
         "installer": INSTALLER_NAME,
-        "as_of": max(r["as_of"] for r in rows),
+        "as_of": df["as_of"].mode()[0],           # the date most systems report up to
         "kpis": {
             "systems": len(df),
             "capacity_kw": round(float(df["capacity_kw"].sum())),
@@ -176,8 +201,9 @@ def overview():
             "underperforming": int((df["health_pct"] < UNDERPERFORMING_PCT).sum()),
             "lanes": {lane: int(lanes.get(lane, 0)) for lane in LANES},
             "rupees_lost_per_month": round(float(issues["rupees_per_month"].sum())) if not issues.empty else 0,
-            "warranty_exposure": int(tech["covered"].fillna(False).sum()) if not tech.empty else 0,
+            "warranty_exposure": int((tech["covered"] == True).sum()) if not tech.empty else 0,  # noqa: E712
             "visits_scheduled": scheduled,
+            "fixes_verifying": int(sum(1 for r in rows if (r["issue"] or {}).get("verifying"))),
             "visits_unscheduled": int(sum(1 for r in rows if r["lane"] == "technician" and not r["work_order"])),
             "avoided_visits": avoided,
             "avoided_visits_rs": avoided * VISIT_COST_RS,
@@ -258,38 +284,54 @@ def suggested_kind(system):
     return "check_in"
 
 
-def send_message(system_id, alert_id, channel, recipient, subject, message, kind):
-    """DEMO: logs the message. Replace the body with an SMS gateway / SMTP call to send for real."""
+def send_message(system_id, alert_id, channel, recipient, subject, message, kind,
+                 created_by="installer", real=True, customer=None):
+    """Log the message, and deliver it for real when Telegram / email is configured (see delivery.py).
+    real=False only logs it (used to cap real deliveries in bulk runs)."""
+    if real:
+        status, via, error = deliver(channel, customer or recipient, recipient, subject, message)
+    else:
+        status, via, error = "logged_demo", None, None
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO notifications (system_id, alert_id, channel, recipient, subject, message, kind, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'logged_demo') RETURNING id, sent_at
-        """, (system_id, alert_id, channel, recipient, subject, message, kind))
+            INSERT INTO notifications (system_id, alert_id, channel, recipient, subject, message, kind, status,
+                                       delivered_via, error, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id, sent_at
+        """, (system_id, alert_id, channel, recipient, subject, message, kind, status, via, error, created_by))
         nid, sent_at = cur.fetchone()
-    return {"id": nid, "status": "logged_demo", "sent_at": sent_at.isoformat()}
+    return {"id": nid, "status": status, "delivered_via": via, "error": error, "sent_at": sent_at.isoformat()}
+
+
+def message_system(s, kind, channel, created_by="installer", real=True, text=None, subject=None):
+    """Compose (unless text is given) and send the message for one fleet row."""
+    m = compose(s, kind, channel)
+    return send_message(s["id"], (s["issue"] or {}).get("alert_id"), channel, m["recipient"],
+                        subject if subject is not None else m["subject"], text or m["message"], kind,
+                        created_by=created_by, real=real, customer=s["owner_name"])
 
 
 def notify_bulk(lane, channel):
     """Send the suggested message to every system in a lane not messaged in the last 7 days."""
-    week_ago = pd.Timestamp.now(tz="Asia/Kolkata") - pd.Timedelta(days=7)
-    sent = []
+    sent, delivered = [], 0
     for s in fleet():
-        if s["lane"] != lane:
+        if s["lane"] != lane or recently_messaged(s):
             continue
-        last = s["last_notified"]
-        if last and pd.Timestamp(last["sent_at"]) > week_ago:
-            continue
-        kind = suggested_kind(s)
-        m = compose(s, kind, channel)
-        send_message(s["id"], (s["issue"] or {}).get("alert_id"), channel, m["recipient"], m["subject"], m["message"], kind)
+        r = message_system(s, suggested_kind(s), channel, real=delivered < REAL_DELIVERY_MAX_PER_RUN)
+        delivered += r["status"] == "sent"
         sent.append(s["id"])
-    return {"sent": len(sent), "system_ids": sent}
+    return {"sent": len(sent), "delivered": delivered, "system_ids": sent}
+
+
+def recently_messaged(s, days=7):
+    last = s["last_notified"]
+    week_ago = pd.Timestamp.now(tz="Asia/Kolkata") - pd.Timedelta(days=days)
+    return bool(last) and pd.Timestamp(last["sent_at"]) > week_ago
 
 
 def notifications(limit=200):
     df = query_df("""
         SELECT n.id, n.system_id, s.name, s.owner_name, s.location, n.channel, n.recipient, n.subject,
-               n.message, n.kind, n.status, n.sent_at
+               n.message, n.kind, n.status, n.delivered_via, n.error, n.created_by, n.sent_at
         FROM notifications n JOIN systems s ON s.id = n.system_id
         ORDER BY n.sent_at DESC LIMIT %s
     """, [limit])
@@ -299,16 +341,16 @@ def notifications(limit=200):
 
 # --- Work orders -------------------------------------------------------------------
 
-def create_work_order(system_id, alert_id, technician, scheduled_date, notes=None):
+def create_work_order(system_id, alert_id, technician, scheduled_date, notes=None, created_by="installer"):
     if technician not in TECHNICIANS:
         raise ValueError(f"Unknown technician {technician}")
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute("UPDATE work_orders SET status = 'cancelled' WHERE system_id = %s AND status = 'scheduled'",
                     (system_id,))
         cur.execute("""
-            INSERT INTO work_orders (system_id, alert_id, technician, scheduled_date, notes)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id
-        """, (system_id, alert_id, technician, scheduled_date, notes))
+            INSERT INTO work_orders (system_id, alert_id, technician, scheduled_date, notes, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+        """, (system_id, alert_id, technician, scheduled_date, notes, created_by))
         return cur.fetchone()[0]
 
 
@@ -322,7 +364,7 @@ def update_work_order(order_id, status):
 def work_orders():
     df = query_df("""
         SELECT w.id, w.system_id, s.name, s.owner_name, s.location, s.phone, w.technician,
-               w.scheduled_date::text, w.status, w.notes, a.label, a.rupees_per_month,
+               w.scheduled_date::text, w.status, w.notes, w.created_by, a.label, a.rupees_per_month,
                (a.start_date <= s.warranty_until) AS warranty_covered
         FROM work_orders w JOIN systems s ON s.id = w.system_id
         LEFT JOIN LATERAL (SELECT * FROM alerts WHERE system_id = w.system_id AND status = 'open'
@@ -336,17 +378,17 @@ def work_orders():
 
 def activity(limit=8):
     df = query_df("""
-        (SELECT 'message' AS type, n.sent_at AS at, s.owner_name, s.location,
+        (SELECT 'message' AS type, n.sent_at AS at, s.owner_name, s.location, n.created_by,
                 n.channel || ': ' || n.kind AS what
          FROM notifications n JOIN systems s ON s.id = n.system_id)
         UNION ALL
-        (SELECT 'visit' AS type, w.created_at AS at, s.owner_name, s.location,
+        (SELECT 'visit' AS type, w.created_at AS at, s.owner_name, s.location, w.created_by,
                 w.status || ': ' || w.technician || ' on ' || w.scheduled_date AS what
          FROM work_orders w JOIN systems s ON s.id = w.system_id)
         ORDER BY at DESC LIMIT %s
     """, [limit])
     return [{"type": r.type, "at": r.at.isoformat(), "owner_name": r.owner_name, "location": r.location,
-             "what": r.what} for r in df.itertuples()]
+             "what": r.what, "created_by": r.created_by} for r in df.itertuples()]
 
 
 def suggested_visit_date(as_of):

@@ -4,7 +4,8 @@ import { useConsole } from "./context.jsx";
 import { Button, Dialog, KINDS } from "./ui.jsx";
 
 export default function NotifyDialog() {
-  const { notifyFor, closeNotify, refresh, toast } = useConsole();
+  const { notifyFor, closeNotify, refresh, toast, autopilot } = useConsole();
+  const live = autopilot?.delivery.telegram || autopilot?.delivery.email;
   const [channel, setChannel] = useState("sms");
   const [kind, setKind] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -28,12 +29,14 @@ export default function NotifyDialog() {
   const send = async () => {
     setBusy(true);
     try {
-      await api("/installer/notify", {
+      const r = await api("/installer/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ system_id: s.id, channel, kind: draft.kind, message: draft.message, subject: draft.subject }),
       });
-      toast(`${channel === "sms" ? "SMS" : "Email"} to ${s.owner_name} logged (demo, not sent)`);
+      toast(r.status === "sent" ? `Delivered to your ${r.delivered_via} (demo customer: ${s.owner_name})`
+            : r.status === "failed" ? `Saved, but delivery failed: ${r.error}`
+            : `${channel === "sms" ? "SMS" : "Email"} to ${s.owner_name} saved (demo, not delivered)`, r.status === "failed" ? "error" : "ok");
       closeNotify();
       refresh();
     } catch (e) {
@@ -55,7 +58,8 @@ export default function NotifyDialog() {
             </>}>
       <div className="space-y-4">
         <div className="rounded-lg bg-sky-50 ring-1 ring-sky-200 px-3 py-2 text-xs text-sky-900">
-          Demo mode: messages are saved to the outbox, not delivered. Connect an SMS gateway or email service to send for real.
+          {live ? "Live: this demo customer's message will arrive on your Telegram / inbox."
+                : "Demo mode: saved to the outbox, not delivered. Set up Telegram or email (README) to receive it live."}
         </div>
 
         <div className="flex flex-wrap gap-3">

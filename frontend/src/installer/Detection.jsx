@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { PageTitle } from "./Layout.jsx";
-import { Card, Kpi } from "./ui.jsx";
+import { Card, Kpi, PageSkeleton } from "./ui.jsx";
 
 const NAMES = {
   healthy: "Healthy", weather_dip: "Weather dip", soiling: "Dust", string_failure: "String offline", inverter_off: "Inverter off",
@@ -16,7 +16,7 @@ const FEATURES = {
 export default function Detection() {
   const [m, setM] = useState(null);
   useEffect(() => { api("/model/stats").then(setM); }, []);
-  if (!m) return <p className="text-slate-500">Loading…</p>;
+  if (!m) return <PageSkeleton />;
   const max = Math.max(...m.confusion_matrix.flat());
   const topImportance = m.feature_importance[0].importance;
 

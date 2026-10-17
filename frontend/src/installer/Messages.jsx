@@ -2,14 +2,14 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useConsole } from "./context.jsx";
 import { PageTitle } from "./Layout.jsx";
-import { Button, Card, Chip, KINDS, ago, fmtDate } from "./ui.jsx";
+import { ByAutopilot, Button, Card, Chip, DELIVERY, KINDS, ago, fmtDate, PageSkeleton } from "./ui.jsx";
 
 export default function Messages() {
-  const { messages, fleet, openSystem, refresh, toast } = useConsole();
+  const { messages, fleet, autopilot, openSystem, refresh, toast } = useConsole();
   const [channel, setChannel] = useState("");
   const [kind, setKind] = useState("");
   const [open, setOpen] = useState(null);
-  if (!fleet) return <p className="text-slate-500">Loading…</p>;
+  if (!fleet) return <PageSkeleton />;
 
   const rows = messages.filter((m) => (!channel || m.channel === channel) && (!kind || m.kind === kind));
   const dust = fleet.filter((s) => s.lane === "customer");
@@ -29,8 +29,11 @@ export default function Messages() {
       <PageTitle title="Customer messages" sub="SMS and email to customers: cleaning reminders, fault alerts, visit confirmations." />
 
       <div className="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
-        <b>Demo mode.</b> Messages are written and saved to this outbox but not delivered. Connecting an SMS gateway
-        (e.g. MSG91, Twilio) or an email service turns this on. Contact details in this demo are placeholders.
+        {autopilot?.delivery.telegram || autopilot?.delivery.email
+          ? <><b>Live delivery on.</b> Demo customers have placeholder contacts, so messages are delivered to your
+              {autopilot.delivery.telegram ? " Telegram" : ""}{autopilot.delivery.telegram && autopilot.delivery.email ? " and" : ""}
+              {autopilot.delivery.email ? ` inbox (${autopilot.delivery.email_to})` : ""} instead.</>
+          : <><b>Demo mode.</b> Messages are saved to this outbox, not delivered. Set up Telegram or email (README) to receive them live.</>}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -48,11 +51,9 @@ export default function Messages() {
             {messages.filter((m) => m.channel === "sms").length} SMS · {messages.filter((m) => m.channel === "email").length} email
           </div>
         </Card>
-        <Card title="Templates">
-          <ul className="text-sm space-y-1 text-slate-700">
-            {Object.values(KINDS).map((k) => <li key={k}>• {k}</li>)}
-          </ul>
-          <p className="text-xs text-slate-500 mt-2">Filled in from each system's diagnosis; editable before sending.</p>
+        <Card title="Delivered for real">
+          <div className="text-3xl font-bold">{messages.filter((m) => m.status === "sent").length}</div>
+          <div className="text-sm text-slate-600">to your Telegram / inbox</div>
         </Card>
       </div>
 
@@ -77,7 +78,8 @@ export default function Messages() {
                     <b>{m.owner_name}</b>
                     <span className="text-slate-500">{m.location} · {m.recipient}</span>
                     <Chip>{KINDS[m.kind]}</Chip>
-                    <Chip tone="slate">Logged (demo)</Chip>
+                    <Chip tone={DELIVERY[m.status]?.tone ?? "slate"}>{DELIVERY[m.status]?.label ?? m.status}{m.delivered_via ? ` · ${m.delivered_via}` : ""}</Chip>
+                    <ByAutopilot who={m.created_by} />
                     <span className="ml-auto text-xs text-slate-500" title={fmtDate(m.sent_at)}>{ago(m.sent_at)}</span>
                   </div>
                   <div className={`mt-1 text-sm text-slate-600 ${open === m.id ? "whitespace-pre-line" : "line-clamp-1"}`}>

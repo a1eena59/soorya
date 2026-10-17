@@ -76,6 +76,12 @@ export default function SystemPanel() {
               <h3 className="font-semibold text-lg">{s.issue.name}</h3>
               <Chip tone="slate">{Math.round(s.issue.confidence * 100)}% confidence</Chip>
             </div>
+            {s.issue.verifying && (
+              <div className="mt-3 rounded-lg bg-sky-50 ring-1 ring-sky-200 px-3 py-2 text-sm text-sky-900">
+                ✓ {s.issue.verifying.technician} visited on {fmtDate(s.issue.verifying.visited)}. We'll close this
+                automatically once the next few days' generation is back to normal.
+              </div>
+            )}
             <p className="text-sm text-slate-700 mt-2">{s.issue.message}</p>
 
             <div className="mt-4">

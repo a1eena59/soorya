@@ -2,14 +2,14 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useConsole } from "./context.jsx";
 import { PageTitle } from "./Layout.jsx";
-import { Button, Card, Chip, LANES, WarrantyChip, fmtDate, rupees, shortDate } from "./ui.jsx";
+import { Button, Card, Chip, LANES, WarrantyChip, fmtDate, rupees, shortDate, PageSkeleton } from "./ui.jsx";
 
 const ISSUE = { string_failure: "Panel string offline", inverter_off: "Inverter not producing", soiling: "Dust on panels" };
 
 export default function Visits() {
   const { orders, fleet, technicians, schedule, openSystem, refresh, toast } = useConsole();
   const [tech, setTech] = useState("");
-  if (!fleet) return <p className="text-slate-500">Loading…</p>;
+  if (!fleet) return <PageSkeleton />;
 
   const upcoming = orders.filter((o) => o.status === "scheduled" && (!tech || o.technician === tech));
   const done = orders.filter((o) => o.status === "done" && (!tech || o.technician === tech));

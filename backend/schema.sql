@@ -142,3 +142,15 @@ CREATE TABLE IF NOT EXISTS notifications (
     status      TEXT NOT NULL DEFAULT 'logged_demo',   -- logged_demo | sent | failed
     sent_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Autopilot + real delivery ------------------------------------------------------
+
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'installer';   -- installer | autopilot
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT 'installer';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS delivered_via TEXT;                          -- telegram | email
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS error TEXT;
+
+CREATE TABLE IF NOT EXISTS settings (
+    key     TEXT PRIMARY KEY,
+    value   JSONB NOT NULL
+);

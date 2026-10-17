@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useConsole } from "./context.jsx";
 import { PageTitle } from "./Layout.jsx";
-import { Button, Chip, HealthBar, LANES, LaneBadge, Sparkline, WarrantyChip, rupees, shortDate } from "./ui.jsx";
+import { Button, Chip, HealthBar, LANES, LaneBadge, Sparkline, WarrantyChip, rupees, shortDate, PageSkeleton } from "./ui.jsx";
 
 const SORTS = {
   priority: () => 0,
@@ -48,7 +48,7 @@ export default function Fleet() {
       .sort(SORTS[sort]);
   }, [fleet, q, area, lane, under, sort]);
 
-  if (!fleet) return <p className="text-slate-500">Loading…</p>;
+  if (!fleet) return <PageSkeleton />;
   const areas = [...new Set(fleet.map((s) => s.location))].sort();
   const counts = Object.fromEntries(Object.keys(LANES).map((l) => [l, fleet.filter((s) => s.lane === l).length]));
 
@@ -91,7 +91,6 @@ export default function Fleet() {
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3 font-semibold">Customer</th>
-              <th className="px-4 py-3 font-semibold">Area</th>
               <th className="px-4 py-3 font-semibold">Health (7 d)</th>
               <th className="px-4 py-3 font-semibold">Last 30 days</th>
               <th className="px-4 py-3 font-semibold">Status</th>
@@ -105,9 +104,8 @@ export default function Fleet() {
               <tr key={s.id} onClick={() => openSystem(s.id)} className="hover:bg-slate-50 cursor-pointer">
                 <td className="px-4 py-3">
                   <div className="font-medium">{s.owner_name}</div>
-                  <div className="text-xs text-slate-500">{s.name} · {s.capacity_kw} kW</div>
+                  <div className="text-xs text-slate-500">{s.location} · {s.capacity_kw} kW</div>
                 </td>
-                <td className="px-4 py-3 text-slate-700">{s.location}</td>
                 <td className="px-4 py-3"><HealthBar pct={s.health_pct} /></td>
                 <td className="px-4 py-3"><Sparkline values={s.spark} color={LANES[s.lane].color} /></td>
                 <td className="px-4 py-3"><LaneBadge lane={s.lane} /></td>
@@ -116,24 +114,24 @@ export default function Fleet() {
                     <div>
                       <div>{s.issue.name}</div>
                       <div className="text-xs text-slate-500">since {shortDate(s.issue.start_date)}</div>
-                      <div className="mt-1"><WarrantyChip covered={s.warranty_covered} /></div>
                     </div>
                   ) : <span className="text-slate-400">–</span>}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums font-medium">{s.issue ? rupees(s.issue.rupees_per_month) : "–"}</td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                  {s.lane === "technician" && (s.work_order
-                    ? <Chip tone="green">🔧 {s.work_order.technician.split(" ")[0]}, {shortDate(s.work_order.scheduled_date)}</Chip>
+                  {s.lane === "technician" && s.issue?.verifying && <Chip tone="blue">✓ Verifying fix</Chip>}
+                  {s.lane === "technician" && !s.issue?.verifying && (s.work_order
+                    ? <Chip tone="green">{s.work_order.created_by === "autopilot" ? "🤖" : "🔧"} {s.work_order.technician.split(" ")[0]}, {shortDate(s.work_order.scheduled_date)}</Chip>
                     : <Button size="sm" variant="dark" onClick={() => schedule(s)}>Schedule</Button>)}
                   {s.lane === "customer" && (s.last_notified
-                    ? <Chip tone="blue">✉ Reminded</Chip>
+                    ? <Chip tone="blue">{s.last_notified.created_by === "autopilot" ? "🤖" : "✉"} Reminded</Chip>
                     : <Button size="sm" variant="primary" onClick={() => notify(s, "clean_panels")}>Remind</Button>)}
                   {(s.lane === "watch" || s.lane === "healthy") && <span className="text-xs text-slate-400">No action</span>}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">No systems match these filters.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">No systems match these filters.</td></tr>
             )}
           </tbody>
         </table>

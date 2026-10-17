@@ -43,3 +43,14 @@ INSTALLER_NAME = "Sunrise Solar Energy, Kochi"     # fictional installer
 TECHNICIANS = ["Arun P", "Biju Thomas", "Sreeja K"]  # fictional technicians
 VISIT_COST_RS = 1200                                # cost of one technician visit (time + travel)
 UNDERPERFORMING_PCT = 90                            # below this % of expected = underperforming
+
+# Real delivery for the demo (optional, see .env.example). Messages to the fake demo customers
+# are redirected to YOUR Telegram chat / inbox, never to the placeholder numbers.
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+DEMO_EMAIL_TO = os.getenv("DEMO_EMAIL_TO", "").strip()
+REAL_DELIVERY_MAX_PER_RUN = 3            # bulk / autopilot: only the first few go out for real

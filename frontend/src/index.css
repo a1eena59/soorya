@@ -1,5 +1,50 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --animate-fade-in: fade-in 0.2s ease-out both;
+  --animate-rise: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-slide-in: slide-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+  @keyframes slide-in { from { transform: translateX(100%) } to { transform: none } }
+  @keyframes pop { from { opacity: 0; transform: scale(0.96) } to { opacity: 1; transform: none } }
+  @keyframes shimmer { from { background-position: -400px 0 } to { background-position: 400px 0 } }
+}
+
+html {
+  scroll-behavior: smooth;
+}
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply bg-slate-100 text-slate-900 antialiased;
+}
+
+/* Leaflet sits under our drawers and dialogs */
+.leaflet-container {
+  font: inherit;
+  z-index: 0;
+}
+/* Muted basemap so the status colours carry the meaning */
+.muted-tiles {
+  filter: grayscale(1) brightness(1.08) contrast(0.85);
+}
+.leaflet-tooltip.soorya-tip {
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 8px 10px;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 0px, #f1f5f9 200px, #e2e8f0 400px);
+  background-size: 800px 100%;
+  @apply animate-shimmer rounded-lg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
