@@ -60,14 +60,11 @@ export default function Connect() {
   return (
     <div className="space-y-6 max-w-3xl">
       <header>
-        <h1 className="text-3xl font-bold">Connect your solar system</h1>
-        <p className="text-slate-600 mt-2">
-          Your inverter app already records how much your panels make. Export it and upload it here.
-          No new hardware, no technician visit. We compare every day with what the sun allowed on your roof.
-        </p>
+        <h1 className="text-3xl font-bold">Connect your inverter</h1>
+        <p className="text-slate-600 mt-2">Upload the export from your inverter app. No new hardware.</p>
         <button onClick={() => submit(true)} disabled={busy}
                 className="mt-3 text-sm text-amber-700 underline underline-offset-2">
-          No export handy? Try with a sample from a 4 kW system in Kochi
+          Try with a sample
         </button>
       </header>
 
@@ -78,10 +75,7 @@ export default function Connect() {
             <li key={brand}><b>{brand}:</b> <span className="text-slate-600">{steps}</span></li>
           ))}
         </ul>
-        <p className="text-xs text-slate-500">
-          Daily reports and detailed (every few minutes) exports both work. Save as CSV. At least 2 weeks of data.
-        </p>
-        <FileDrop label="Upload the CSV" hint="Daily or detailed export, .csv" busy={busy} done={!!file}
+        <FileDrop label="Upload the CSV" hint="At least 2 weeks of data" busy={busy} done={!!file}
                   onFile={setFile} accept=".csv,text/csv" busyText="Checking your data…" />
       </section>
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import FleetMap from "./FleetMap.jsx";
 import { useConsole } from "./context.jsx";
 import { PageTitle } from "./Layout.jsx";
-import { Card, LANES, PageSkeleton, rupees } from "./ui.jsx";
+import { Card, LANES, PageSkeleton } from "./ui.jsx";
 
 export default function MapPage() {
   const { overview: o, fleet, openSystem } = useConsole();
@@ -13,7 +13,7 @@ export default function MapPage() {
 
   return (
     <div>
-      <PageTitle title="Map" sub="Every roof you maintain. Click a dot for the diagnosis, or pick an area to zoom in." />
+      <PageTitle title="Map" sub="Click a dot for details." />
       <div className="grid gap-6 xl:grid-cols-4 items-start">
         <Card className="xl:col-span-3">
           <FleetMap height={640} focusArea={area} />
@@ -42,7 +42,7 @@ export default function MapPage() {
                     <button onClick={() => openSystem(s.id)} className="w-full text-left rounded-lg px-2 py-2 hover:bg-slate-50 transition">
                       <div className="flex justify-between gap-2 text-sm">
                         <span className="font-medium">{s.owner_name}</span>
-                        <span className="tabular-nums">{rupees(s.issue.rupees_per_month)}</span>
+                        <span className="tabular-nums text-slate-500">−{s.issue.fault_pct}%</span>
                       </div>
                       <div className="text-xs text-slate-500">
                         <span style={{ color: LANES[s.lane].color }}>{LANES[s.lane].icon}</span> {s.issue.name} · {s.location}

@@ -2,71 +2,35 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useConsole } from "./context.jsx";
 import { PageTitle } from "./Layout.jsx";
-import { ByAutopilot, Button, Card, Chip, DELIVERY, KINDS, ago, fmtDate, PageSkeleton } from "./ui.jsx";
+import { AGENT_KINDS, ByAutopilot, Button, Card, Chip, KINDS, ago, fmtDate, kindLabel, PageSkeleton } from "./ui.jsx";
 
 export default function Messages() {
-  const { messages, fleet, autopilot, openSystem, refresh, toast } = useConsole();
-  const [channel, setChannel] = useState("");
+  const { messages, fleet, openSystem, refresh, toast } = useConsole();
   const [kind, setKind] = useState("");
   const [open, setOpen] = useState(null);
   if (!fleet) return <PageSkeleton />;
 
-  const rows = messages.filter((m) => (!channel || m.channel === channel) && (!kind || m.kind === kind));
-  const dust = fleet.filter((s) => s.lane === "customer");
-  const dustUnreminded = dust.filter((s) => !s.last_notified).length;
+  const rows = messages.filter((m) => !kind || m.kind === kind);
+  const unreminded = fleet.filter((s) => s.lane === "customer" && !s.last_notified).length;
 
-  const bulk = async (ch) => {
+  const remindAll = async () => {
     const r = await api("/installer/notify/bulk", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lane: "customer", channel: ch }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lane: "customer", channel: "sms" }),
     });
-    toast(r.sent ? `${r.sent} reminders logged by ${ch.toUpperCase()} (demo, not sent)` : "Everyone was already reminded this week");
+    toast(r.sent ? `${r.sent} cleaning reminders sent` : "Everyone was already reminded this week");
     refresh();
   };
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Customer messages" sub="SMS and email to customers: cleaning reminders, fault alerts, visit confirmations." />
-
-      <div className="rounded-xl bg-sky-50 ring-1 ring-sky-200 px-4 py-3 text-sm text-sky-900">
-        {autopilot?.delivery.telegram || autopilot?.delivery.email
-          ? <><b>Live delivery on.</b> Demo customers have placeholder contacts, so messages are delivered to your
-              {autopilot.delivery.telegram ? " Telegram" : ""}{autopilot.delivery.telegram && autopilot.delivery.email ? " and" : ""}
-              {autopilot.delivery.email ? ` inbox (${autopilot.delivery.email_to})` : ""} instead.</>
-          : <><b>Demo mode.</b> Messages are saved to this outbox, not delivered. Set up Telegram or email (README) to receive them live.</>}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card title="Dust reminders">
-          <p className="text-sm text-slate-600">{dust.length} customers can fix their drop by rinsing the panels. {dustUnreminded} haven't been told yet.</p>
-          <div className="mt-3 flex gap-2">
-            <Button variant="primary" onClick={() => bulk("sms")} disabled={!dustUnreminded}>Send by SMS</Button>
-            <Button onClick={() => bulk("email")} disabled={!dustUnreminded}>Send by email</Button>
-          </div>
-          <p className="text-xs text-slate-500 mt-2">Skips anyone messaged in the last 7 days.</p>
-        </Card>
-        <Card title="Sent">
-          <div className="text-3xl font-bold">{messages.length}</div>
-          <div className="text-sm text-slate-600">
-            {messages.filter((m) => m.channel === "sms").length} SMS · {messages.filter((m) => m.channel === "email").length} email
-          </div>
-        </Card>
-        <Card title="Delivered for real">
-          <div className="text-3xl font-bold">{messages.filter((m) => m.status === "sent").length}</div>
-          <div className="text-sm text-slate-600">to your Telegram / inbox</div>
-        </Card>
-      </div>
+      <PageTitle title="Messages" sub={`${messages.length} SMS sent · demo outbox, not delivered`}
+                 actions={unreminded > 0 && <Button variant="primary" onClick={remindAll}>Remind {unreminded} dust cases</Button>} />
 
       <Card title="Outbox" action={
-        <div className="flex gap-2">
-          <select value={channel} onChange={(e) => setChannel(e.target.value)} className="rounded-lg ring-1 ring-slate-300 px-2 py-1 text-sm bg-white">
-            <option value="">All channels</option><option value="sms">SMS</option><option value="email">Email</option>
-          </select>
-          <select value={kind} onChange={(e) => setKind(e.target.value)} className="rounded-lg ring-1 ring-slate-300 px-2 py-1 text-sm bg-white">
-            <option value="">All types</option>
-            {Object.entries(KINDS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
-        </div>
+        <select value={kind} onChange={(e) => setKind(e.target.value)} className="rounded-lg ring-1 ring-slate-300 px-2 py-1 text-sm bg-white">
+          <option value="">All types</option>
+          {Object.entries({ ...AGENT_KINDS, ...KINDS }).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
       }>
         {rows.length === 0 ? <p className="text-sm text-slate-500">No messages yet.</p> : (
           <ul className="divide-y divide-slate-100">
@@ -74,17 +38,13 @@ export default function Messages() {
               <li key={m.id} className="py-3">
                 <button className="w-full text-left" onClick={() => setOpen(open === m.id ? null : m.id)}>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <Chip tone={m.channel === "sms" ? "blue" : "violet"}>{m.channel === "sms" ? "SMS" : "Email"}</Chip>
                     <b>{m.owner_name}</b>
-                    <span className="text-slate-500">{m.location} · {m.recipient}</span>
-                    <Chip>{KINDS[m.kind]}</Chip>
-                    <Chip tone={DELIVERY[m.status]?.tone ?? "slate"}>{DELIVERY[m.status]?.label ?? m.status}{m.delivered_via ? ` · ${m.delivered_via}` : ""}</Chip>
+                    <span className="text-slate-500">{m.recipient}</span>
+                    <Chip>{kindLabel(m.kind)}</Chip>
                     <ByAutopilot who={m.created_by} />
                     <span className="ml-auto text-xs text-slate-500" title={fmtDate(m.sent_at)}>{ago(m.sent_at)}</span>
                   </div>
-                  <div className={`mt-1 text-sm text-slate-600 ${open === m.id ? "whitespace-pre-line" : "line-clamp-1"}`}>
-                    {m.subject && <b>{m.subject}: </b>}{m.message}
-                  </div>
+                  <div className={`mt-1 text-sm text-slate-600 ${open === m.id ? "whitespace-pre-line" : "line-clamp-1"}`}>{m.message}</div>
                 </button>
                 {open === m.id && (
                   <button onClick={() => openSystem(m.system_id)} className="mt-1 text-xs text-slate-600 underline">Open system</button>

@@ -4,18 +4,17 @@ import { ConsoleProvider, useConsole } from "./context.jsx";
 import NotifyDialog from "./NotifyDialog.jsx";
 import ScheduleDialog from "./ScheduleDialog.jsx";
 import SystemPanel from "./SystemPanel.jsx";
+import CompleteDialog from "./CompleteDialog.jsx";
 import { Icon, Svg, fmtDate } from "./ui.jsx";
 
 function Nav({ onNavigate }) {
-  const { overview, orders, autopilot } = useConsole();
-  const lanes = overview?.kpis.lanes;
+  const { agent } = useConsole();
   const items = [
     ["/", "Dashboard", Icon.dashboard, null],
-    ["/queue", "Work queue", Icon.queue, lanes ? lanes.technician + lanes.customer : null],
-    ["/autopilot", "Autopilot", Icon.autopilot, autopilot?.settings.enabled ? "ON" : null],
+    ["/agent", "Agent", Icon.autopilot, agent?.summary.proposed.jobs || (agent?.settings.enabled ? "ON" : null)],
     ["/map", "Map", Icon.map, null],
     ["/fleet", "Fleet", Icon.fleet, null],
-    ["/visits", "Visits", Icon.visits, orders.filter((o) => o.status === "scheduled").length || null],
+    ["/visits", "Visits", Icon.visits, null],
     ["/messages", "Messages", Icon.messages, null],
     ["/detection", "Accuracy", Icon.detection, null],
   ];
@@ -48,7 +47,7 @@ function Toasts() {
 }
 
 function Shell() {
-  const { overview, error, refresh } = useConsole();
+  const { overview, error, refresh, busy } = useConsole();
   const [menu, setMenu] = useState(false);
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
@@ -80,9 +79,11 @@ function Shell() {
             <Svg>{Icon.queue}</Svg>
           </button>
           <div className="text-sm text-slate-600 flex-1">
-            {overview ? <>Data up to <b>{fmtDate(overview.as_of)}</b> · daily from inverter reports + satellite weather</> : "Loading…"}
+            {busy ? <span className="font-medium text-slate-900">{busy}</span>
+                  : overview ? <>Data up to <b>{fmtDate(overview.as_of)}</b></> : "Loading…"}
           </div>
           <button onClick={refresh} className="text-sm text-slate-600 hover:text-slate-900">↻ Refresh</button>
+          {busy && <div className="absolute left-0 right-0 bottom-0 h-0.5 overflow-hidden"><div className="h-full w-1/3 bg-amber-500 animate-[slide-bar_1.2s_ease-in-out_infinite]" /></div>}
         </header>
         <main key={pathname} className="p-4 lg:p-6 max-w-[1400px] animate-fade-in">
           {error ? (
@@ -96,6 +97,7 @@ function Shell() {
       <SystemPanel />
       <NotifyDialog />
       <ScheduleDialog />
+      <CompleteDialog />
       <Toasts />
     </div>
   );

@@ -57,7 +57,7 @@ def seed_demo_contacts():
 def fleet():
     seed_demo_contacts()
     systems = query_df("""
-        SELECT s.id, s.name, s.owner_name, s.location, s.capacity_kw, s.phone, s.email, s.source,
+        SELECT s.id, s.name, s.owner_name, s.location, s.capacity_kw, s.phone, s.email, s.source, s.inverter_model,
                s.install_date::text, s.warranty_until
         FROM systems s ORDER BY s.id
     """)
@@ -80,11 +80,14 @@ def fleet():
     """).drop_duplicates("system_id").set_index("system_id")
     orders = query_df("""
         SELECT DISTINCT ON (system_id) id, system_id, technician, scheduled_date::text, status, created_by
-        FROM work_orders WHERE status = 'scheduled' ORDER BY system_id, scheduled_date
+        FROM work_orders WHERE status IN ('scheduled', 'proposed') ORDER BY system_id, scheduled_date
     """).set_index("system_id")
     done = query_df("""
         SELECT DISTINCT ON (system_id) system_id, technician, scheduled_date
         FROM work_orders WHERE status = 'done' ORDER BY system_id, scheduled_date DESC
+    """).set_index("system_id")
+    tix = query_df("""
+        SELECT system_id, id, stage, route, owner_response FROM tickets WHERE status = 'open'
     """).set_index("system_id")
     notified = query_df("""
         SELECT DISTINCT ON (system_id) system_id, channel, kind, sent_at, created_by, status
@@ -128,7 +131,10 @@ def fleet():
         rows.append({
             "id": int(s.id), "name": s.name, "owner_name": s.owner_name, "location": s.location,
             "capacity_kw": float(s.capacity_kw), "phone": s.phone, "email": s.email, "source": s.source,
-            "position": approx_position(int(s.id), s.location),
+            "position": approx_position(int(s.id), s.location), "inverter_model": s.inverter_model,
+            "ticket": None if s.id not in tix.index else {
+                "id": int(tix.loc[s.id].id), "stage": tix.loc[s.id].stage, "route": tix.loc[s.id].route,
+                "owner_response": tix.loc[s.id].owner_response},
             "install_date": s.install_date, "warranty_until": str(warranty) if warranty else None,
             "warranty_covered": covered, "as_of": str(l.as_of), "health_pct": health,
             "today_label": l.label, "lane": lane, "issue": issue,
@@ -285,11 +291,11 @@ def suggested_kind(system):
 
 
 def send_message(system_id, alert_id, channel, recipient, subject, message, kind,
-                 created_by="installer", real=True, customer=None):
+                 created_by="installer", real=True, customer=None, html=None):
     """Log the message, and deliver it for real when Telegram / email is configured (see delivery.py).
     real=False only logs it (used to cap real deliveries in bulk runs)."""
     if real:
-        status, via, error = deliver(channel, customer or recipient, recipient, subject, message)
+        status, via, error = deliver(channel, customer or recipient, recipient, subject, message, html)
     else:
         status, via, error = "logged_demo", None, None
     with get_conn() as conn, conn.cursor() as cur:
@@ -364,13 +370,14 @@ def update_work_order(order_id, status):
 def work_orders():
     df = query_df("""
         SELECT w.id, w.system_id, s.name, s.owner_name, s.location, s.phone, w.technician,
-               w.scheduled_date::text, w.status, w.notes, w.created_by, a.label, a.rupees_per_month,
+               w.scheduled_date::text, w.status, w.notes, w.created_by, w.job, w.confirmed_cause,
+               a.label, a.rupees_per_month,
                (a.start_date <= s.warranty_until) AS warranty_covered
         FROM work_orders w JOIN systems s ON s.id = w.system_id
         LEFT JOIN LATERAL (SELECT * FROM alerts WHERE system_id = w.system_id AND status = 'open'
                            AND audience = 'technician' ORDER BY rupees_per_month DESC LIMIT 1) a ON TRUE
         WHERE w.status <> 'cancelled'
-        ORDER BY (w.status = 'done'), w.scheduled_date, s.location
+        ORDER BY (w.status = 'done'), (w.status = 'proposed'), w.scheduled_date, s.location
     """)
     df["issue_name"] = df["label"].map(ISSUE_NAMES)
     return df

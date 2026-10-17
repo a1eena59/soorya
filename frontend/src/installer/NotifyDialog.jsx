@@ -4,7 +4,7 @@ import { useConsole } from "./context.jsx";
 import { Button, Dialog, KINDS } from "./ui.jsx";
 
 export default function NotifyDialog() {
-  const { notifyFor, closeNotify, refresh, toast, autopilot } = useConsole();
+  const { notifyFor, closeNotify, refresh, toast, agent: autopilot } = useConsole();
   const live = autopilot?.delivery.telegram || autopilot?.delivery.email;
   const [channel, setChannel] = useState("sms");
   const [kind, setKind] = useState(null);
@@ -57,10 +57,7 @@ export default function NotifyDialog() {
               </Button>
             </>}>
       <div className="space-y-4">
-        <div className="rounded-lg bg-sky-50 ring-1 ring-sky-200 px-3 py-2 text-xs text-sky-900">
-          {live ? "Live: this demo customer's message will arrive on your Telegram / inbox."
-                : "Demo mode: saved to the outbox, not delivered. Set up Telegram or email (README) to receive it live."}
-        </div>
+        <div className="rounded-lg bg-sky-50 ring-1 ring-sky-200 px-3 py-2 text-xs text-sky-900">Demo: saved to the outbox, not delivered.</div>
 
         <div className="flex flex-wrap gap-3">
           <div className="inline-flex rounded-lg ring-1 ring-slate-300 overflow-hidden text-sm">

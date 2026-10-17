@@ -5,13 +5,14 @@ import Connect from "./pages/Connect.jsx";
 import MonthlyReport from "./pages/MonthlyReport.jsx";
 import Layout from "./installer/Layout.jsx";
 import Dashboard from "./installer/Dashboard.jsx";
-import Queue from "./installer/Queue.jsx";
 import Fleet from "./installer/Fleet.jsx";
 import Visits from "./installer/Visits.jsx";
 import Messages from "./installer/Messages.jsx";
 import Detection from "./installer/Detection.jsx";
 import MapPage from "./installer/MapPage.jsx";
-import Autopilot from "./installer/Autopilot.jsx";
+import Agent from "./installer/Agent.jsx";
+import Respond from "./pages/Respond.jsx";
+import TechApp from "./pages/TechApp.jsx";
 
 const customerLinks = [
   ["/system/1", "My system"],
@@ -55,9 +56,8 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/queue" element={<Queue />} />
         <Route path="/map" element={<MapPage />} />
-        <Route path="/autopilot" element={<Autopilot />} />
+        <Route path="/agent" element={<Agent />} />
         <Route path="/fleet" element={<Fleet />} />
         <Route path="/visits" element={<Visits />} />
         <Route path="/messages" element={<Messages />} />
@@ -68,10 +68,15 @@ export default function App() {
         <Route path="/system/:id" element={<MySystem />} />
         <Route path="/system/:id/report" element={<MonthlyReport />} />
         <Route path="/connect" element={<Connect />} />
+        <Route path="/respond/:token" element={<Respond />} />
       </Route>
+      <Route path="/tech" element={<TechApp />} />
+      <Route path="/tech/:name" element={<TechApp />} />
       <Route path="/installer" element={<Navigate to="/" replace />} />
       <Route path="/model" element={<Navigate to="/detection" replace />} />
       <Route path="/audit" element={<Navigate to="/customer" replace />} />
+      <Route path="/queue" element={<Navigate to="/agent" replace />} />
+      <Route path="/autopilot" element={<Navigate to="/agent" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

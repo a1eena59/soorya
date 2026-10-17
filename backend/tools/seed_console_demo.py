@@ -1,56 +1,33 @@
-"""Reset the installer console to a believable demo state.
+"""Reset the demo to a clean starting point (about 20 seconds).
 
-Clears all work orders and messages, then:
-  - books visits for the inverter faults, grouped by area (one technician per area per day)
-  - logs the matching "visit scheduled" SMS to those customers
-  - logs a cleaning reminder for the two oldest dust cases
-Leaves the string failures (incl. the Nair residence demo roof) and most dust cases
-unhandled so they can be actioned live in the demo, turns autopilot OFF, and removes the
-customer-connected sample so it can be imported live (/connect) while autopilot is on.
+  - rebuilds the simulated fleet as of 31 Dec 2025 (the demo clock may have moved it forward)
+  - re-runs health + fault detection (uses the trained model; no retraining)
+  - clears agent tickets, visits, messages and learned labels; agent OFF
+  - removes the customer-connected sample so it can be imported live on /connect
 
 Run from backend/: python tools/seed_console_demo.py
 """
 import sys
-from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import maintenance
+from csv_import import delete_system
 from db import get_conn
-
-AREA_TECH = {"Kochi": "Arun P", "Kozhikode": "Biju Thomas", "Kannur": "Biju Thomas", "Pathanamthitta": "Sreeja K"}
+from expected import compute_health
+from predict import run as run_predictions
+from simulate import run as simulate
 
 
 def main():
-    with get_conn() as conn, conn.cursor() as cur:
-        cur.execute("DELETE FROM notifications")
-        cur.execute("DELETE FROM work_orders")
-        cur.execute("DELETE FROM settings WHERE key = 'autopilot'")      # autopilot OFF: switch it on in the demo
-
-    # Customer-connected sample (2026 data) is re-imported live in the demo: start without it
-    from csv_import import delete_system
     delete_system("Menon residence (sample)")
-
-    fleet = maintenance.fleet()
-    booked = 0
-    for s in fleet:
-        if s["lane"] != "technician" or s["issue"]["label"] != "inverter_off":
-            continue
-        tech = AREA_TECH.get(s["location"], "Sreeja K")
-        day = date.fromisoformat(s["as_of"]) + timedelta(days=1 if tech != "Sreeja K" else 2)   # its own "today"
-        maintenance.create_work_order(s["id"], s["issue"]["alert_id"], tech, day)
-        booked += 1
-
-    fleet = maintenance.fleet()                 # now with work orders attached
-    for s in fleet:
-        if s["work_order"]:
-            maintenance.message_system(s, "visit_scheduled", "sms", real=False)
-
-    dust = sorted((s for s in fleet if s["lane"] == "customer"), key=lambda s: s["issue"]["start_date"])[:2]
-    for s in dust:
-        maintenance.message_system(s, "clean_panels", "email", real=False)
-
-    print(f"{booked} visits booked, {booked + len(dust)} messages logged")
+    with get_conn() as conn, conn.cursor() as cur:
+        for table in ("tickets", "confirmed_labels", "notifications", "work_orders"):
+            cur.execute(f"DELETE FROM {table}")
+        cur.execute("DELETE FROM settings")
+    simulate()
+    compute_health()
+    run_predictions()
+    print("Demo reset: 100 systems as of 31 Dec 2025, agent off, no tickets.")
 
 
 if __name__ == "__main__":

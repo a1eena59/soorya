@@ -54,3 +54,15 @@ SMTP_USER = os.getenv("SMTP_USER", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
 DEMO_EMAIL_TO = os.getenv("DEMO_EMAIL_TO", "").strip()
 REAL_DELIVERY_MAX_PER_RUN = 3            # bulk / autopilot: only the first few go out for real
+
+# Maintenance agent
+AGENT_PERSIST_DAYS = 7           # a fault must persist this long before the agent opens a ticket
+AGENT_IGNORE_BELOW_RS = 50       # loss per month below this: not worth a notification
+AGENT_ESCALATE_ABOVE_RS = 300    # unanswered owner tickets escalate to a technician above this loss
+AGENT_RECOVERED_PCT = 95         # verification: back within 5% of neighbours / expected
+AGENT_REMIND_AFTER_DAYS = 3
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").strip()
+
+# Where each technician starts the day (district from locations.py); routing uses distance from here
+TECH_BASES = {"Arun P": "Kochi", "Biju Thomas": "Kozhikode", "Sreeja K": "Kottayam"}
+ROAD_FACTOR = 1.35            # straight-line km -> rough road km in Kerala

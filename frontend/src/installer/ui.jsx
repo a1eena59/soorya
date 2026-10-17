@@ -18,6 +18,12 @@ export const KINDS = {
   visit_scheduled: "Visit scheduled",
   check_in: "All good check-in",
 };
+// Messages the agent sends (shown in the outbox, not offered as manual templates)
+export const AGENT_KINDS = {
+  owner_action: "Owner can fix", data_fix: "Data missing", reminder: "Reminder", visit: "Visit booked",
+  visit_reminder: "Visit tomorrow", closed_ok: "Fixed, all good",
+};
+export const kindLabel = (k) => KINDS[k] ?? AGENT_KINDS[k] ?? k;
 
 export const rupees = (n) => (n == null ? "–" : `₹${Math.round(n).toLocaleString("en-IN")}`);
 export const fmtDate = (d, opts = { day: "numeric", month: "short", year: "numeric" }) =>
@@ -234,7 +240,7 @@ export function Switch({ on, onChange, disabled }) {
 }
 
 export function ByAutopilot({ who }) {
-  return who === "autopilot" ? <Chip tone="violet" title="Done automatically by Soorya autopilot">🤖 Autopilot</Chip> : null;
+  return who === "agent" || who === "autopilot" ? <Chip tone="violet" title="Done by the Soorya agent">🤖 Agent</Chip> : null;
 }
 
 export const DELIVERY = {
@@ -242,3 +248,42 @@ export const DELIVERY = {
   logged_demo: { label: "Logged (demo)", tone: "slate" },
   failed: { label: "Failed", tone: "red" },
 };
+
+export const FAULT_SHORT = {
+  soiling: "Dust", string_failure: "String offline", inverter_off: "Inverter off", data_gap: "No data",
+};
+
+export const STAGES = {
+  waiting: { label: "Waiting for rain", icon: "🌧" },
+  owner: { label: "Owner fixing", icon: "🏠" },
+  callback: { label: "Call the owner", icon: "📞" },
+  verifying: { label: "Checking the fix", icon: "🔍" },
+  technician: { label: "Technician", icon: "🔧" },
+  closed: { label: "Closed", icon: "✓" },
+};
+
+// One clear control: a big "Turn on" when off, a green status + small "Turn off" when on
+export function AgentToggle({ on, onChange, disabled, size = "md" }) {
+  if (on) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 text-emerald-800 px-3 py-1.5 text-sm font-semibold">
+          <span className="relative flex w-2.5 h-2.5">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+            <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          </span>
+          Agent on
+        </span>
+        <button onClick={() => onChange(false)} disabled={disabled}
+                className="text-sm text-slate-500 hover:text-slate-900 disabled:opacity-50">Turn off</button>
+      </span>
+    );
+  }
+  return (
+    <button onClick={() => onChange(true)} disabled={disabled}
+            className={`inline-flex items-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-sm
+                        transition active:scale-[0.98] disabled:opacity-50 ${size === "lg" ? "px-5 py-3" : "px-4 py-2 text-sm"}`}>
+      <span aria-hidden>▶</span> Turn on agent
+    </button>
+  );
+}

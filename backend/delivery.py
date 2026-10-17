@@ -30,21 +30,25 @@ def _telegram(text):
         raise RuntimeError(f"Telegram {r.status_code}: {r.text[:120]}")
 
 
-def _email(subject, body):
+def _email(subject, body, html=None):
     msg = EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = SMTP_USER, DEMO_EMAIL_TO, subject or "Message from your solar installer"
     msg.set_content(body)
+    if html:
+        msg.add_alternative(html, subtype="html")
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as s:
         s.starttls()
         s.login(SMTP_USER, SMTP_PASSWORD)
         s.send_message(msg)
 
 
-def deliver(channel, customer, recipient, subject, message):
+def deliver(channel, customer, recipient, subject, message, html=None):
     ch = channels()
     try:
         if channel == "email" and ch["email"]:
-            _email(subject, f"[Demo: would go to {customer} <{recipient}>]\n\n{message}")
+            note = f"[Demo: would go to {customer} <{recipient}>]"
+            _email(subject, f"{note}\n\n{message}",
+                   html and f'<p style="color:#94a3b8;font-size:12px">{note}</p>{html}')
             return "sent", "email", None
         if ch["telegram"]:
             head = f"📱 SMS to {customer} ({recipient})" if channel == "sms" else f"📧 Email to {customer} ({recipient})\n{subject}"

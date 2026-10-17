@@ -154,3 +154,50 @@ CREATE TABLE IF NOT EXISTS settings (
     key     TEXT PRIMARY KEY,
     value   JSONB NOT NULL
 );
+
+-- Maintenance agent --------------------------------------------------------------
+
+ALTER TABLE systems ADD COLUMN IF NOT EXISTS inverter_model TEXT;
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS job TEXT NOT NULL DEFAULT 'repair';      -- repair | cleaning
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS confirmed_cause TEXT;
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS reminded BOOLEAN NOT NULL DEFAULT FALSE;
+-- work_orders.status also takes 'proposed' (agent suggestion waiting for installer approval)
+
+CREATE TABLE IF NOT EXISTS tickets (
+    id              SERIAL PRIMARY KEY,
+    system_id       INT NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+    fault           TEXT NOT NULL,                  -- soiling | string_failure | inverter_off | data_gap
+    route           TEXT NOT NULL,                  -- wait | owner_action | data_fix | technician | ignore
+    stage           TEXT NOT NULL,                  -- waiting | owner | verifying | technician | callback | closed
+    status          TEXT NOT NULL DEFAULT 'open',   -- open | closed
+    loss_rs         DOUBLE PRECISION,
+    confidence      DOUBLE PRECISION,
+    reason          TEXT,                           -- why this route (plain code or LLM note)
+    opened_on       DATE NOT NULL,                  -- system's own "today" when opened
+    recheck_on      DATE,
+    notified_on     DATE,
+    owner_response  TEXT,                           -- done | book_cleaning | call_me
+    verify_from     DATE,
+    reminders       INT NOT NULL DEFAULT 0,
+    work_order_id   INT,
+    resolution      TEXT,                           -- e.g. owner_fixed: soiling | technician_fixed: MC4 connector burnt
+    token           TEXT UNIQUE NOT NULL,
+    events          JSONB NOT NULL DEFAULT '[]',
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Confirmed (pattern -> cause) pairs from closed tickets: the growing labelled dataset
+CREATE TABLE IF NOT EXISTS confirmed_labels (
+    id          SERIAL PRIMARY KEY,
+    system_id   INT NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+    fault       TEXT NOT NULL,
+    cause       TEXT NOT NULL,
+    start_date  DATE NOT NULL,
+    end_date    DATE NOT NULL,
+    source      TEXT NOT NULL,                  -- owner | technician | rain
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Technician reports back from the field
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS tech_notes TEXT;
+-- work_orders.status also takes 'not_fixed' (technician couldn't fix on this visit)

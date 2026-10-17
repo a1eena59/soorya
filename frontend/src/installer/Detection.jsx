@@ -23,13 +23,13 @@ export default function Detection() {
   return (
     <div className="space-y-6">
       <PageTitle title="Detection accuracy"
-                 sub="How well the fault classifier separates real faults from weather. Evaluated on roofs it never saw during training." />
+                 sub="Tested on roofs the model never saw." />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Accuracy on unseen roofs" value={`${(m.accuracy * 100).toFixed(1)}%`} sub={`5-fold, grouped by system · ${m.rows.toLocaleString("en-IN")} system-days`} />
-        <Kpi label="String failure precision" value={`${Math.round(m.per_class.string_failure.precision * 100)}%`} sub="When we say 'send a technician', how often it's real" />
-        <Kpi label="Weather correctly ignored" value={`${Math.round(m.per_class.weather_dip.recall * 100)}%`} sub="Local-weather days recognised as weather" />
-        <Kpi label="Held-out demo roof" value={`${(m.hero_accuracy * 100).toFixed(1)}%`} sub="SYS-001, never used in training" />
+        <Kpi label="Accuracy on unseen roofs" value={`${(m.accuracy * 100).toFixed(1)}%`}  />
+        <Kpi label="String failure precision" value={`${Math.round(m.per_class.string_failure.precision * 100)}%`}  />
+        <Kpi label="Weather correctly ignored" value={`${Math.round(m.per_class.weather_dip.recall * 100)}%`}  />
+        <Kpi label="Held-out demo roof" value={`${(m.hero_accuracy * 100).toFixed(1)}%`}  />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -62,7 +62,7 @@ export default function Detection() {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-slate-500 mt-2">Diagonal (outlined) = correct. Alerts additionally require a fault to persist for days, which removes most single-day mistakes.</p>
+          <p className="text-xs text-slate-500 mt-2">Outlined = correct.</p>
         </Card>
 
         <Card title="What the model looks at">

@@ -2,20 +2,20 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useConsole } from "./context.jsx";
 import { PageTitle } from "./Layout.jsx";
-import { Button, Chip, HealthBar, LANES, LaneBadge, Sparkline, WarrantyChip, rupees, shortDate, PageSkeleton } from "./ui.jsx";
+import { Button, Chip, HealthBar, LANES, LaneBadge, Sparkline, WarrantyChip, shortDate, PageSkeleton } from "./ui.jsx";
 
 const SORTS = {
   priority: () => 0,
   health: (a, b) => (a.health_pct ?? 999) - (b.health_pct ?? 999),
-  loss: (a, b) => (b.issue?.rupees_per_month ?? 0) - (a.issue?.rupees_per_month ?? 0),
+  drop: (a, b) => (b.issue?.fault_pct ?? 0) - (a.issue?.fault_pct ?? 0),
   name: (a, b) => (a.owner_name ?? "").localeCompare(b.owner_name ?? ""),
   area: (a, b) => a.location.localeCompare(b.location),
 };
 
 function exportCsv(rows) {
-  const head = ["system", "customer", "area", "kw", "health_pct", "status", "issue", "rupees_per_month", "warranty_until", "phone", "email"];
+  const head = ["system", "customer", "area", "kw", "health_pct", "status", "issue", "output_down_pct", "warranty_until", "phone", "email"];
   const lines = rows.map((s) => [s.name, s.owner_name, s.location, s.capacity_kw, s.health_pct, LANES[s.lane].label,
-    s.issue?.name ?? "", s.issue?.rupees_per_month ?? "", s.warranty_until ?? "", s.phone, s.email]
+    s.issue?.name ?? "", s.issue?.fault_pct ?? "", s.warranty_until ?? "", s.phone, s.email]
     .map((v) => `"${String(v ?? "").replaceAll('"', '""')}"`).join(","));
   const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv" });
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "soorya-fleet.csv" });
@@ -54,7 +54,7 @@ export default function Fleet() {
 
   return (
     <div>
-      <PageTitle title="Fleet" sub="Every system you maintain. Click a row for the full diagnosis."
+      <PageTitle title="Fleet" sub="Click a row for details."
                  actions={<Button onClick={() => exportCsv(rows)}>Export CSV</Button>} />
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -80,7 +80,7 @@ export default function Fleet() {
         <select value={sort} onChange={(e) => setSort(e.target.value)} className="ml-auto rounded-lg ring-1 ring-slate-300 px-3 py-2 text-sm bg-white">
           <option value="priority">Sort: priority</option>
           <option value="health">Sort: lowest health</option>
-          <option value="loss">Sort: biggest ₹ loss</option>
+          <option value="drop">Sort: biggest drop</option>
           <option value="name">Sort: customer</option>
           <option value="area">Sort: area</option>
         </select>
@@ -95,7 +95,7 @@ export default function Fleet() {
               <th className="px-4 py-3 font-semibold">Last 30 days</th>
               <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">Problem</th>
-              <th className="px-4 py-3 font-semibold text-right">Loss / mo</th>
+              <th className="px-4 py-3 font-semibold text-right">Drop</th>
               <th className="px-4 py-3 font-semibold">Next step</th>
             </tr>
           </thead>
@@ -117,7 +117,7 @@ export default function Fleet() {
                     </div>
                   ) : <span className="text-slate-400">–</span>}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums font-medium">{s.issue ? rupees(s.issue.rupees_per_month) : "–"}</td>
+                <td className="px-4 py-3 text-right tabular-nums font-medium">{s.issue ? `−${s.issue.fault_pct}%` : "–"}</td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   {s.lane === "technician" && s.issue?.verifying && <Chip tone="blue">✓ Verifying fix</Chip>}
                   {s.lane === "technician" && !s.issue?.verifying && (s.work_order

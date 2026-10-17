@@ -138,7 +138,7 @@ export default function MonthlyReport() {
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-xs text-slate-500 mt-1">Day of the month. Best day: {fmtDate(r.best_day.day)}, {r.best_day.kwh} units.</p>
+        <p className="text-xs text-slate-500 mt-1">Best day: {fmtDate(r.best_day.day)}, {r.best_day.kwh} units</p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
@@ -181,10 +181,6 @@ export default function MonthlyReport() {
         </button>
       </div>
 
-      <p className="text-xs text-slate-500">
-        "Sun allowed" is calculated from satellite sunlight for {r.system.location} and this system's own performance in its first month.
-        Savings assume every unit replaces one bought at ₹{r.tariff_rs}.
-      </p>
     </div>
   );
 }

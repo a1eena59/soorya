@@ -28,6 +28,7 @@ INSTALLER = "Sunrise Solar Energy, Kochi"
 # More systems near the installer's base
 LOCATION_WEIGHTS = {"Kochi": 4, "Thrissur": 3, "Kottayam": 2, "Alappuzha": 2, "Kozhikode": 2}
 CAPACITIES = [2, 3, 3, 3, 4, 4, 5, 5, 6, 8]
+INVERTERS = ["Growatt MIN {kw}000TL-X", "Solis S6-GR1P{kw}K", "Deye SUN-{kw}K-G04"]
 SURNAMES = [
     "Nair", "Menon", "Pillai", "Thomas", "Joseph", "Varghese", "Kurian", "Abraham", "Rahman",
     "Krishnan", "Das", "Mathew", "George", "Iyer", "Warrier", "Koshy", "Philip", "Ali", "Panicker",
@@ -56,6 +57,7 @@ def make_systems(rng):
             "capacity_kw": float(rng.choice(CAPACITIES)),
             "install_date": install,
             "warranty_until": install + timedelta(days=5 * 365 + 1),   # 5-year workmanship warranty
+            "inverter_brand": i % len(INVERTERS),             # not random: keeps the fleet identical
         }
         if i == 0:
             system.update(HERO)
@@ -96,10 +98,11 @@ def insert_systems(systems, installer_id):
         for s in systems:
             cur.execute(
                 """INSERT INTO systems (name, owner_name, location, capacity_kw, install_date,
-                                        warranty_until, installer_id, source)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, 'simulated') RETURNING id""",
+                                        warranty_until, installer_id, source, inverter_model)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, 'simulated', %s) RETURNING id""",
                 ("", s["owner_name"], s["location"], s["capacity_kw"], s["install_date"],
-                 s["warranty_until"], installer_id),
+                 s["warranty_until"], installer_id,
+                 INVERTERS[s["inverter_brand"]].format(kw=int(s["capacity_kw"]))),
             )
             s["id"] = cur.fetchone()[0]
             s["name"] = f"SYS-{s['id']:03d}"

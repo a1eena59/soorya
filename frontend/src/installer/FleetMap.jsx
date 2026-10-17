@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { useConsole } from "./context.jsx";
-import { LANES, rupees } from "./ui.jsx";
+import { LANES } from "./ui.jsx";
 
 const KERALA = [[8.3, 75.2], [12.7, 77.2]];
 const ORDER = ["healthy", "watch", "customer", "technician"];          // problems drawn on top
@@ -70,7 +70,7 @@ export default function FleetMap({ height = 460, filter = null, focusArea = null
                     <div className="font-semibold text-sm">{s.owner_name}</div>
                     <div className="text-slate-500">{s.location} · {s.capacity_kw} kW · {s.health_pct}% health</div>
                     <div className="mt-1" style={{ color: l.color }}>{l.icon} {s.issue ? s.issue.name : l.label}</div>
-                    {s.issue && <div>{rupees(s.issue.rupees_per_month)}/month being lost</div>}
+                    {s.issue && <div>Output down {s.issue.fault_pct}%</div>}
                     <div className="text-slate-400 mt-1">Click for details</div>
                   </div>
                 </Tooltip>
@@ -79,9 +79,7 @@ export default function FleetMap({ height = 460, filter = null, focusArea = null
           })}
         </MapContainer>
       </div>
-      <p className="text-xs text-slate-500 mt-2">
-        Dot size = system size. Demo positions are approximate (spread around each district centre).
-      </p>
+      <p className="text-xs text-slate-400 mt-2">Demo positions are approximate.</p>
     </div>
   );
 }
